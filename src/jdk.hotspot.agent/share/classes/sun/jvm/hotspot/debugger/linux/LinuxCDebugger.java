@@ -91,7 +91,7 @@ class LinuxCDebugger implements CDebugger {
        AMD64ThreadContext context = (AMD64ThreadContext) thread.getContext();
        Address pc  = context.getRegisterAsAddress(AMD64ThreadContext.RIP);
        if (pc == null) return null;
-       return LinuxAMD64CFrame.getTopFrame(dbg, pc, context);
+       return LinuxAMD64CFrame.getTopFrame((LinuxDebuggerLocal)dbg, pc, context);
     }  else if (cpu.equals("ppc64")) {
         PPC64ThreadContext context = (PPC64ThreadContext) thread.getContext();
         Address sp = context.getRegisterAsAddress(PPC64ThreadContext.SP);

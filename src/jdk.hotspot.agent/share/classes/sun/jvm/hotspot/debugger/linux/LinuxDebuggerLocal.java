@@ -51,6 +51,7 @@ import sun.jvm.hotspot.debugger.UnmappedAddressException;
 import sun.jvm.hotspot.debugger.cdbg.CDebugger;
 import sun.jvm.hotspot.debugger.cdbg.ClosestSymbol;
 import sun.jvm.hotspot.debugger.cdbg.LoadObject;
+import sun.jvm.hotspot.debugger.linux.amd64.NativeUnwinder;
 import sun.jvm.hotspot.utilities.PlatformInfo;
 
 /** <P> An implementation of the JVMDebugger interface. The basic debug
@@ -73,6 +74,7 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     private boolean attached;
     private long    p_ps_prochandle; // native debugger handle
     private boolean isCore;
+    private String coreName;
 
     // CDebugger support
     private LinuxCDebugger cdbg;
@@ -355,6 +357,7 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
         attach0(execName, coreName);
         attached = true;
         isCore = true;
+        this.coreName = coreName;
         findABIVersion();
     }
 
@@ -666,6 +669,57 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
         throws UnmappedAddressException, DebuggerException {
         // FIXME
         throw new DebuggerException("Unimplemented");
+    }
+
+    public NativeUnwinder createUnwinder(int lwp_id, Address ip, Address sp, Address bp, LinuxDebuggerLocal debugger) {
+        class CreateUnwinderTask implements WorkerThreadTask {
+            NativeUnwinder result;
+            public void doit(LinuxDebuggerLocal debugger) {
+                result = new NativeUnwinder(lwp_id, ip, sp, bp, debugger);
+            }
+        }
+
+        CreateUnwinderTask task = new CreateUnwinderTask();
+        workerThread.execute(task);
+        return task.result;
+    }
+
+    public boolean step(NativeUnwinder unwinder) {
+        class StepTask implements WorkerThreadTask {
+            boolean result;
+            public void doit(LinuxDebuggerLocal debugger) {
+                result = unwinder.step();
+            }
+        }
+
+        StepTask task = new StepTask();
+        workerThread.execute(task);
+        return task.result;
+    }
+
+    public long getBPFromUnwinder(NativeUnwinder unwinder) {
+        class GetBPTask implements WorkerThreadTask {
+            long result;
+            public void doit(LinuxDebuggerLocal debugger) {
+                result = unwinder.getBP0();
+            }
+        }
+
+        GetBPTask task = new GetBPTask();
+        workerThread.execute(task);
+        return task.result;
+    }
+
+    public boolean isCore() {
+        return isCore;
+    }
+
+    public String getCoreName() {
+        return coreName;
+    }
+
+    public long getProcHandle() {
+        return p_ps_prochandle;
     }
 
     static {

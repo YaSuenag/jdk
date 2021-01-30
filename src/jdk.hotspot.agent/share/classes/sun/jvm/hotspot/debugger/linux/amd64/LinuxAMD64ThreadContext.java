@@ -30,10 +30,12 @@ import sun.jvm.hotspot.debugger.linux.*;
 
 public class LinuxAMD64ThreadContext extends AMD64ThreadContext {
   private LinuxDebugger debugger;
+  private int lwp_id;
 
   public LinuxAMD64ThreadContext(LinuxDebugger debugger) {
     super();
     this.debugger = debugger;
+    this.lwp_id = -1;
   }
 
   public void setRegisterAsAddress(int index, Address value) {
@@ -42,5 +44,13 @@ public class LinuxAMD64ThreadContext extends AMD64ThreadContext {
 
   public Address getRegisterAsAddress(int index) {
     return debugger.newAddress(getRegister(index));
+  }
+
+  public void setLwpId(int lwp_id) {
+    this.lwp_id = lwp_id;
+  }
+
+  public int getLwpId() {
+    return lwp_id;
   }
 }

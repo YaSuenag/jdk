@@ -25,6 +25,7 @@
 package sun.jvm.hotspot.debugger.linux;
 
 import sun.jvm.hotspot.debugger.*;
+import sun.jvm.hotspot.debugger.linux.amd64.*;
 
 class LinuxThread implements ThreadProxy {
     private LinuxDebugger debugger;
@@ -79,6 +80,9 @@ class LinuxThread implements ThreadProxy {
             for (int i = 0; i < data.length; i++) {
                 context.setRegister(i, data[i]);
             }
+        }
+        if (context instanceof LinuxAMD64ThreadContext) {
+            ((LinuxAMD64ThreadContext)context).setLwpId(lwp_id);
         }
         return context;
     }
