@@ -51,6 +51,7 @@ import sun.jvm.hotspot.debugger.UnmappedAddressException;
 import sun.jvm.hotspot.debugger.cdbg.CDebugger;
 import sun.jvm.hotspot.debugger.cdbg.ClosestSymbol;
 import sun.jvm.hotspot.debugger.cdbg.LoadObject;
+import sun.jvm.hotspot.debugger.linux.amd64.DwarfParser;
 import sun.jvm.hotspot.utilities.PlatformInfo;
 
 /** <P> An implementation of the JVMDebugger interface. The basic debug
@@ -660,6 +661,20 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
             workerThread.execute(task);
             return task.result;
         }
+    }
+
+    public synchronized DwarfParser createDwarfParser(Address libptr, Address rip, Address rbp, Address rsp) {
+        requireAttach();
+        class CreateDwarfParserTask implements WorkerThreadTask {
+            DwarfParser result;
+            public void doit(LinuxDebuggerLocal debugger) {
+                result = new DwarfParser(libptr, rip, rbp, rsp, debugger);
+            }
+        }
+
+        CreateDwarfParserTask task = new CreateDwarfParserTask();
+        workerThread.execute(task);
+        return task.result;
     }
 
     public void writeBytesToProcess(long address, long numBytes, byte[] data)

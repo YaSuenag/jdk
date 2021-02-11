@@ -30,33 +30,11 @@
 
 #define CHECK_EXCEPTION if (env->ExceptionOccurred()) { return; }
 
-static jfieldID p_dwarf_context_ID = 0;
-static jint sa_RAX = -1;
-static jint sa_RDX = -1;
-static jint sa_RCX = -1;
-static jint sa_RBX = -1;
-static jint sa_RSI = -1;
-static jint sa_RDI = -1;
-static jint sa_RBP = -1;
-static jint sa_RSP = -1;
-static jint sa_R8  = -1;
-static jint sa_R9  = -1;
-static jint sa_R10 = -1;
-static jint sa_R11 = -1;
-static jint sa_R12 = -1;
-static jint sa_R13 = -1;
-static jint sa_R14 = -1;
-static jint sa_R15 = -1;
-
-static jlong get_dwarf_context(JNIEnv *env, jobject obj) {
-  return env->GetLongField(obj, p_dwarf_context_ID);
-}
-
-#define SET_REG(env, reg, reg_cls) \
-  jfieldID reg##_ID = env->GetStaticFieldID(reg_cls, #reg, "I"); \
-  CHECK_EXCEPTION \
-  sa_##reg = env->GetStaticIntField(reg_cls, reg##_ID); \
-  CHECK_EXCEPTION
+static jfieldID bpField;
+static jfieldID spField;
+static jfieldID raField;
+static jfieldID debuggerField;
+static jclass ex_class;
 
 /*
  * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
@@ -66,170 +44,50 @@ static jlong get_dwarf_context(JNIEnv *env, jobject obj) {
 extern "C"
 JNIEXPORT void JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_init0
   (JNIEnv *env, jclass this_cls) {
-  jclass cls = env->FindClass("sun/jvm/hotspot/debugger/linux/amd64/DwarfParser");
+  bpField = env->GetFieldID(this_cls, "bp", "J");
   CHECK_EXCEPTION
-  p_dwarf_context_ID = env->GetFieldID(cls, "p_dwarf_context", "J");
+  spField = env->GetFieldID(this_cls, "sp", "J");
   CHECK_EXCEPTION
-
-  jclass reg_cls = env->FindClass("sun/jvm/hotspot/debugger/amd64/AMD64ThreadContext");
+  raField = env->GetFieldID(this_cls, "ra", "J");
   CHECK_EXCEPTION
-  SET_REG(env, RAX, reg_cls);
-  SET_REG(env, RDX, reg_cls);
-  SET_REG(env, RCX, reg_cls);
-  SET_REG(env, RBX, reg_cls);
-  SET_REG(env, RSI, reg_cls);
-  SET_REG(env, RDI, reg_cls);
-  SET_REG(env, RBP, reg_cls);
-  SET_REG(env, RSP, reg_cls);
-  SET_REG(env, R8,  reg_cls);
-  SET_REG(env, R9,  reg_cls);
-  SET_REG(env, R10, reg_cls);
-  SET_REG(env, R11, reg_cls);
-  SET_REG(env, R12, reg_cls);
-  SET_REG(env, R13, reg_cls);
-  SET_REG(env, R14, reg_cls);
-  SET_REG(env, R15, reg_cls);
+  debuggerField = env->GetFieldID(this_cls, "debugger", "Lsun/jvm/hotspot/debugger/linux/LinuxDebuggerLocal;");
+  CHECK_EXCEPTION
+  ex_class = env->FindClass("sun/jvm/hotspot/debugger/DebuggerException");
+  CHECK_EXCEPTION
+  ex_class = static_cast<jclass>(env->NewGlobalRef(ex_class));
 }
 
 /*
  * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
- * Method:    createDwarfContext
- * Signature: (J)J
+ * Method:    processDwarf
+ * Signature: (JJJJ)V
  */
 extern "C"
-JNIEXPORT jlong JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_createDwarfContext
-  (JNIEnv *env, jclass this_cls, jlong lib) {
-  jlong result = 0L;
-
-  DwarfParser *parser = new DwarfParser(reinterpret_cast<lib_info *>(lib));
-  if (!parser->is_parseable()) {
-    jclass ex_cls = env->FindClass("sun/jvm/hotspot/debugger/DebuggerException");
-    if (!env->ExceptionOccurred()) {
-        env->ThrowNew(ex_cls, "DWARF not found");
-    }
-    return 0L;
-  }
-
-  return reinterpret_cast<jlong>(parser);
-}
-
-/*
- * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
- * Method:    destroyDwarfContext
- * Signature: (J)V
- */
-extern "C"
-JNIEXPORT void JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_destroyDwarfContext
-  (JNIEnv *env, jclass this_cls, jlong context) {
-  DwarfParser *parser = reinterpret_cast<DwarfParser *>(context);
-  delete parser;
-}
-
-/*
- * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
- * Method:    isIn0
- * Signature: (J)Z
- */
-extern "C"
-JNIEXPORT jboolean JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_isIn0
-  (JNIEnv *env, jobject this_obj, jlong pc) {
-  DwarfParser *parser = reinterpret_cast<DwarfParser *>(get_dwarf_context(env, this_obj));
-  return static_cast<jboolean>(parser->is_in(pc));
-}
-
-/*
- * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
- * Method:    processDwarf0
- * Signature: (J)V
- */
-extern "C"
-JNIEXPORT void JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_processDwarf0
-  (JNIEnv *env, jobject this_obj, jlong pc) {
-  DwarfParser *parser = reinterpret_cast<DwarfParser *>(get_dwarf_context(env, this_obj));
-  if (!parser->process_dwarf(pc)) {
-    jclass ex_cls = env->FindClass("sun/jvm/hotspot/debugger/DebuggerException");
-    if (!env->ExceptionOccurred()) {
-        env->ThrowNew(ex_cls, "Could not find PC in DWARF");
-    }
+JNIEXPORT void JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_processDwarf
+  (JNIEnv *env, jobject this_obj, jlong libptr, jlong ip, jlong bp, jlong sp) {
+  jobject debugger = env->GetObjectField(this_obj, debuggerField);
+  struct ps_prochandle *ph = get_proc_handle(env, debugger);
+  DwarfParser parser(ph,
+                     reinterpret_cast<lib_info *>(libptr),
+                     static_cast<uintptr_t>(ip),
+                     static_cast<uintptr_t>(bp),
+                     static_cast<uintptr_t>(sp));
+  if (parser.is_error()) {
+    env->ThrowNew(ex_class, parser.error_message());
     return;
   }
-}
 
-/*
- * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
- * Method:    getCFARegister
- * Signature: ()I
- */
-extern "C"
-JNIEXPORT jint JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_getCFARegister
-  (JNIEnv *env, jobject this_obj) {
-  DwarfParser *parser = reinterpret_cast<DwarfParser *>(get_dwarf_context(env, this_obj));
-  switch (parser->get_cfa_register()) {
-    case RAX: return sa_RAX;
-    case RDX: return sa_RDX;
-    case RCX: return sa_RCX;
-    case RBX: return sa_RBX;
-    case RSI: return sa_RSI;
-    case RDI: return sa_RDI;
-    case RBP: return sa_RBP;
-    case RSP: return sa_RSP;
-    case R8:  return sa_R8;
-    case R9:  return sa_R9;
-    case R10: return sa_R10;
-    case R11: return sa_R11;
-    case R12: return sa_R12;
-    case R13: return sa_R13;
-    case R14: return sa_R14;
-    case R15: return sa_R15;
-    default:  return -1;
+  uintptr_t dwarf_bp = parser.get_bp();
+  uintptr_t dwarf_sp = parser.get_sp();
+  uintptr_t dwarf_ra = parser.get_ra();
+
+  if ((dwarf_ra == 0L) || (dwarf_sp == 0L)) { // final frame
+    dwarf_bp = 0L;
+    dwarf_sp = 0L;
+    dwarf_ra = 0L;
   }
-}
 
-/*
- * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
- * Method:    getCFAOffset
- * Signature: ()I
- */
-extern "C"
-JNIEXPORT jint JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_getCFAOffset
-  (JNIEnv *env, jobject this_obj) {
-  DwarfParser *parser = reinterpret_cast<DwarfParser *>(get_dwarf_context(env, this_obj));
-  return parser->get_cfa_offset();
+  env->SetLongField(this_obj, bpField, static_cast<jlong>(dwarf_bp));
+  env->SetLongField(this_obj, spField, static_cast<jlong>(dwarf_sp));
+  env->SetLongField(this_obj, raField, static_cast<jlong>(dwarf_ra));
 }
-
-/*
- * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
- * Method:    getReturnAddressOffsetFromCFA
- * Signature: ()I
- */
-extern "C"
-JNIEXPORT jint JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_getReturnAddressOffsetFromCFA
-  (JNIEnv *env, jobject this_obj) {
-  DwarfParser *parser = reinterpret_cast<DwarfParser *>(get_dwarf_context(env, this_obj));
-  return parser->get_ra_cfa_offset();
-}
-
-/*
- * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
- * Method:    getBasePointerOffsetFromCFA
- * Signature: ()I
- */
-extern "C"
-JNIEXPORT jint JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_getBasePointerOffsetFromCFA
-  (JNIEnv *env, jobject this_obj) {
-  DwarfParser *parser = reinterpret_cast<DwarfParser *>(get_dwarf_context(env, this_obj));
-  return parser->get_bp_cfa_offset();
-}
-
-/*
- * Class:     sun_jvm_hotspot_debugger_linux_amd64_DwarfParser
- * Method:    isBPOffsetAvailable
- * Signature: ()Z
- */
-extern "C"
-JNIEXPORT jboolean JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_DwarfParser_isBPOffsetAvailable
-  (JNIEnv *env, jobject this_obj) {
-  DwarfParser *parser = reinterpret_cast<DwarfParser *>(get_dwarf_context(env, this_obj));
-  return parser->is_bp_offset_available();
-}
-

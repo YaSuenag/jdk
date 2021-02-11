@@ -25,46 +25,43 @@
 
 package sun.jvm.hotspot.debugger.linux.amd64;
 
-import java.lang.ref.Cleaner;
 import sun.jvm.hotspot.debugger.Address;
-import sun.jvm.hotspot.debugger.DebuggerException;
+import sun.jvm.hotspot.debugger.linux.LinuxDebuggerLocal;
 
 public class DwarfParser {
-  private final long p_dwarf_context; // native dwarf context handle
 
-  private static native void init0();
-  private static native long createDwarfContext(long lib);
-  private static native void destroyDwarfContext(long context);
-  private native boolean isIn0(long pc);
+    // They will be set from processDwarf()
+    private long bp;
+    private long sp;
+    private long ra;
 
-  static {
-    init0();
-  }
+    private final LinuxDebuggerLocal debugger;
 
-  public DwarfParser(Address lib) {
-    p_dwarf_context = createDwarfContext(lib.asLongValue());
+    private static native void init0();
+    private native void processDwarf(long lib, long ip, long bp, long sp);
 
-    if (p_dwarf_context == 0L) {
-      throw new DebuggerException("Could not create DWARF context");
+    static {
+        init0();
     }
 
-    Cleaner.create()
-           .register(this, () -> DwarfParser.destroyDwarfContext(p_dwarf_context));
-  }
+    public DwarfParser(Address lib, Address ip, Address bp, Address sp, LinuxDebuggerLocal debugger) {
+        this.debugger = debugger;
+        processDwarf(lib.asLongValue(),
+                     ip.asLongValue(),
+                     bp == null ? 0L : bp.asLongValue(),
+                     sp.asLongValue());
+    }
 
-  public boolean isIn(Address pc) {
-    return isIn0(pc.asLongValue());
-  }
+    public Address getBasePointer() {
+        return debugger.newAddress(bp);
+    }
 
-  private native void processDwarf0(long pc);
+    public Address getStackPointer() {
+        return debugger.newAddress(sp);
+    }
 
-  public void processDwarf(Address pc) {
-    processDwarf0(pc.asLongValue());
-  }
+    public Address getReturnAddress() {
+        return debugger.newAddress(ra);
+    }
 
-  public native int getCFARegister();
-  public native int getCFAOffset();
-  public native int getReturnAddressOffsetFromCFA();
-  public native int getBasePointerOffsetFromCFA();
-  public native boolean isBPOffsetAvailable();
 }
