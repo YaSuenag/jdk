@@ -23,6 +23,8 @@
  *
  */
 
+// THIS SOURCE WILL BE BUILT ON LINUX AMD64 ONLY!
+
 #include <cstdlib>
 #include <dwarf.h>
 #include <fcntl.h>
@@ -85,15 +87,10 @@ void DwarfParser::process_dwarf(Elf *elf, uintptr_t ip_offset, uintptr_t bp, uin
   result = dwarf_cfi_addrframe(cfi, ip_offset, &frame);
   if (result != 0) { // fallback to use RBP
     print_debug("dwarf_cfi_addrframe() error: %s\n", dwarf_errmsg(dwarf_errno()));
-    uintptr_t retval;
-    bool read_result;
-
-    read_result = _ph->ops->p_pread(_ph, bp, reinterpret_cast<char *>(&retval), sizeof(uintptr_t));
-    _bp = read_result ? retval : 0L;
-    read_result = _ph->ops->p_pread(_ph, bp + sizeof(uintptr_t), reinterpret_cast<char *>(&retval), sizeof(uintptr_t));
-    _ra = read_result ? retval : 0L;
-    read_result = _ph->ops->p_pread(_ph, bp + (sizeof(uintptr_t) * 2), reinterpret_cast<char *>(&retval), sizeof(uintptr_t));
-    _sp = read_result ? retval : 0L;
+    print_debug("Fallback to use RBP\n");
+    _ph->ops->p_pread(_ph, bp, reinterpret_cast<char *>(&_bp), sizeof(uintptr_t));
+    _ph->ops->p_pread(_ph, bp + sizeof(uintptr_t), reinterpret_cast<char *>(&_ra), sizeof(uintptr_t));
+    _ph->ops->p_pread(_ph, bp + (sizeof(uintptr_t) * 2), reinterpret_cast<char *>(&_sp), sizeof(uintptr_t));
     return;
   }
 
@@ -119,15 +116,15 @@ void DwarfParser::process_dwarf(Elf *elf, uintptr_t ip_offset, uintptr_t bp, uin
 uintptr_t DwarfParser::get_cfa_address(Dwarf_Op *cfa_op, uintptr_t bp, uintptr_t sp) {
 
   if (cfa_op->atom == DW_OP_bregx) {
-    switch (cfa_op->number) {
-      case RBP:
-        return bp + cfa_op->number2;
-      case RSP:
-        return sp + cfa_op->number2;
+    if (cfa_op->number == RBP) {
+      return bp + cfa_op->number2;
+    } else if (cfa_op->number == RSP) {
+      return sp + cfa_op->number2;
+    } else {
+      print_debug("Unsupported dwarf register in DwarfParser::get_cfa_address(): %d\n", cfa_op->number);
+      _error = "Unsupported dwarf operation in DwarfParser::get_cfa_address()";
+      return -1L;
     }
-    print_debug("Unsupported dwarf register in DwarfParser::get_cfa_address(): %d\n", cfa_op->number);
-    _error = "Unsupported dwarf operation in DwarfParser::get_cfa_address()";
-    return -1L;
   } else if (cfa_op->atom == DW_OP_breg6) {
     return bp + cfa_op->number;
   } else if (cfa_op->atom == DW_OP_breg7) {
@@ -169,32 +166,24 @@ uintptr_t DwarfParser::get_register_value(Dwarf_Frame *frame, uintptr_t cfa, DWA
   }
 
   if ((ops[0].atom == DW_OP_call_frame_cfa) && (nops == 2)) {
-    uintptr_t ofs_from_cfa;
     if (ops[1].atom == DW_OP_stack_value) {
       return cfa;
-    } else if (ops[1].atom == DW_OP_plus_uconst) {
-      uintptr_t retval;
-      uintptr_t ofs = cfa + ops[1].number;
-      bool read_result = _ph->ops->p_pread(_ph, ofs, reinterpret_cast<char *>(&retval), sizeof(uintptr_t));
-      if (read_result) {
-        return retval;
+    } else {
+      uintptr_t ofs;
+      if (ops[1].atom == DW_OP_plus_uconst) {
+        ofs = cfa + ops[1].number;
+      } else if (ops[1].atom == DW_OP_breg6) {
+        ofs = bp + ops[1].number;
+      } else if (ops[1].atom == DW_OP_breg7) {
+        ofs = sp + ops[1].number;
       } else {
-        print_debug("DwarfParser::get_register_value(): could not read register value: 0x%lx\n", ofs);
-        _error = "DwarfParser::get_register_value(): could not read register value";
+        print_debug("DwarfParser::get_register_value() does not support %s in second operation\n", op_name(ops[1].atom));
+        _error = "Unsupported second operation";
         return 0L;
       }
-    } else if (ops[1].atom == DW_OP_breg6) {
       uintptr_t retval;
-      bool read_result = _ph->ops->p_pread(_ph, bp + ops[1].number, reinterpret_cast<char *>(&retval), sizeof(uintptr_t));
+      bool read_result = _ph->ops->p_pread(_ph, ofs, reinterpret_cast<char *>(&retval), sizeof(uintptr_t));
       return read_result ? retval : 0L;
-    } else if (ops[1].atom == DW_OP_breg7) {
-      uintptr_t retval;
-      bool read_result = _ph->ops->p_pread(_ph, sp + ops[1].number, reinterpret_cast<char *>(&retval), sizeof(uintptr_t));
-      return read_result ? retval : 0L;
-    } else {
-      print_debug("DwarfParser::get_register_value() does not support %s in second operation\n", op_name(ops[1].atom));
-      _error = "Unsupported second operation";
-      return 0L;
     }
   }
 

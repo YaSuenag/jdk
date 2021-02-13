@@ -43,10 +43,10 @@ final public class LinuxAMD64CFrame extends BasicCFrame {
             dwarf = ((LinuxDebuggerLocal)dbg).createDwarfParser(libptr, rip, rbp, rsp);
             rbp = dwarf.getBasePointer();
         }
-        return new LinuxAMD64CFrame(dbg, rbp, rsp, rip, dwarf);
+        return new LinuxAMD64CFrame((LinuxDebuggerLocal)dbg, rbp, rsp, rip, dwarf);
     }
 
-    private LinuxAMD64CFrame(LinuxDebugger dbg, Address rbp, Address rsp, Address rip, DwarfParser dwarf) {
+    private LinuxAMD64CFrame(LinuxDebuggerLocal dbg, Address rbp, Address rsp, Address rip, DwarfParser dwarf) {
         super(dbg.getCDebugger());
         this.rbp = rbp;
         this.rsp = rsp;
@@ -98,7 +98,7 @@ final public class LinuxAMD64CFrame extends BasicCFrame {
         } else { // next frame is in native
             if (isNative()) { // current frame is in native
                 nextRSP = dwarf.getStackPointer();
-                nextDwarf = ((LinuxDebuggerLocal)dbg).createDwarfParser(libptr, nextRIP, dwarf.getBasePointer(), nextRSP);
+                nextDwarf = dbg.createDwarfParser(libptr, nextRIP, dwarf.getBasePointer(), nextRSP);
                 nextRBP = nextDwarf.getBasePointer();
             } else { // current frame is in Java
                 nextRBP = rbp.getAddressAt(0);
@@ -117,6 +117,6 @@ final public class LinuxAMD64CFrame extends BasicCFrame {
     private Address rip;
     private Address rbp;
     private Address rsp;
-    private LinuxDebugger dbg;
+    private LinuxDebuggerLocal dbg;
     private DwarfParser dwarf;
 }

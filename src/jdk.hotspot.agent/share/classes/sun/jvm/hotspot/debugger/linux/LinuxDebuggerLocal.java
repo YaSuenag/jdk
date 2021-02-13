@@ -664,6 +664,8 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     }
 
     public synchronized DwarfParser createDwarfParser(Address libptr, Address rip, Address rbp, Address rsp) {
+        // C'tor of DwarfParser will issue ptrace(2) to read values on memory when SA is attached to live process.
+        // Thus we need to call it on WorkerThread.
         requireAttach();
         class CreateDwarfParserTask implements WorkerThreadTask {
             DwarfParser result;

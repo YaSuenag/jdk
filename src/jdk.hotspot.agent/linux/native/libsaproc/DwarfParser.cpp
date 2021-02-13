@@ -23,6 +23,8 @@
  *
  */
 
+// THIS SOURCE WILL BE BUILT ON LINUX AMD64 ONLY!
+
 #include <jni.h>
 
 #include "dwarf.hpp"

@@ -28,11 +28,13 @@ include LibCommon.gmk
 ################################################################################
 
 DWARF_LIBS :=
+DWARF_EXCLUDE_FILES := DwarfParser.cpp dwarf.cpp
 
 ifeq ($(call isTargetOs, linux), true)
   SA_CFLAGS := -D_FILE_OFFSET_BITS=64
   ifeq ($(call isTargetCpu, x86_64), true)
     DWARF_LIBS := -ldw -lelf
+    DWARF_EXCLUDE_FILES :=
   endif
 else ifeq ($(call isTargetOs, macosx), true)
   SA_CFLAGS := -Damd64 -D_GNU_SOURCE -mno-omit-leaf-frame-pointer \
@@ -61,6 +63,7 @@ endif
 
 $(eval $(call SetupJdkLibrary, BUILD_LIBSA, \
     NAME := saproc, \
+    EXCLUDE_FILES := $(DWARF_EXCLUDE_FILES), \
     TOOLCHAIN := $(SA_TOOLCHAIN), \
     OPTIMIZATION := HIGH, \
     DISABLED_WARNINGS_microsoft := 4267, \
