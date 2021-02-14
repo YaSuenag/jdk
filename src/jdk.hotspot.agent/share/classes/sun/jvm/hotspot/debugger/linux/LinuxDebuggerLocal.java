@@ -672,6 +672,7 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     }
 
     public NativeUnwinder createUnwinder(int lwp_id, Address ip, Address sp, Address bp, LinuxDebuggerLocal debugger) {
+        requireAttach();
         class CreateUnwinderTask implements WorkerThreadTask {
             NativeUnwinder result;
             public void doit(LinuxDebuggerLocal debugger) {
@@ -685,6 +686,7 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     }
 
     public boolean step(NativeUnwinder unwinder) {
+        requireAttach();
         class StepTask implements WorkerThreadTask {
             boolean result;
             public void doit(LinuxDebuggerLocal debugger) {
@@ -698,6 +700,7 @@ public class LinuxDebuggerLocal extends DebuggerBase implements LinuxDebugger {
     }
 
     public long getBPFromUnwinder(NativeUnwinder unwinder) {
+        requireAttach();
         class GetBPTask implements WorkerThreadTask {
             long result;
             public void doit(LinuxDebuggerLocal debugger) {
