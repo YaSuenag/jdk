@@ -176,6 +176,7 @@ RPM_LIST := \
     libffi libffi-devel \
     fontconfig fontconfig-devel \
     systemtap-sdt-devel \
+    libunwind libunwind-devel \
     #
 
 ##########################################################################################

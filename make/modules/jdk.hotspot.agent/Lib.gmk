@@ -28,11 +28,13 @@ include LibCommon.gmk
 ################################################################################
 
 UNWIND_LIBS :=
+UNWIND_EXCLUDE_FILES := NativeUnwinder.cpp
 
 ifeq ($(call isTargetOs, linux), true)
   SA_CFLAGS := -D_FILE_OFFSET_BITS=64
   ifeq ($(call isTargetCpu, x86_64), true)
     UNWIND_LIBS := -lunwind -lunwind-ptrace -lunwind-coredump -lunwind-generic
+    UNWIND_EXCLUDE_FILES :=
   endif
 else ifeq ($(call isTargetOs, macosx), true)
   SA_CFLAGS := -Damd64 -D_GNU_SOURCE -mno-omit-leaf-frame-pointer \
@@ -61,6 +63,7 @@ endif
 
 $(eval $(call SetupJdkLibrary, BUILD_LIBSA, \
     NAME := saproc, \
+    EXCLUDE_FILES := $(UNWIND_EXCLUDE_FILES), \
     TOOLCHAIN := $(SA_TOOLCHAIN), \
     OPTIMIZATION := HIGH, \
     DISABLED_WARNINGS_microsoft := 4267, \
