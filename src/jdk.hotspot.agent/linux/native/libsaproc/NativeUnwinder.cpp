@@ -186,10 +186,6 @@ JNIEXPORT void JNICALL Java_sun_jvm_hotspot_debugger_linux_amd64_NativeUnwinder_
     for (int i = 0; i < get_num_libs(ph); i++) {
       uintptr_t base = get_lib_base(ph, i);
       const char *libname = get_lib_name(ph, i);
-      if (base == 0UL) {
-        // FIXME: base address of executable (e.g. java) will be 0x0
-        continue;
-      }
       if (_UCD_add_backing_file_at_vaddr(reinterpret_cast<struct UCD_info *>(args), base, libname) < 0) {
         env->ThrowNew(debuggerExceptionClass, "_UCD_add_backing_file_at_vaddr");
         return;
