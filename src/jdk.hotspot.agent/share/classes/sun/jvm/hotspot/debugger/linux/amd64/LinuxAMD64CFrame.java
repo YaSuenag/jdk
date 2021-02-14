@@ -71,15 +71,8 @@ final public class LinuxAMD64CFrame extends BasicCFrame {
 
     @Override
     public CFrame sender(ThreadProxy thread) {
-        Address nextRIP;
-        if (isNative()) { // current frame is in native
-            nextRIP = dwarf.getReturnAddress();
-        } else { // current frame is in Java
-            if (rbp == null) {
-                return null;
-            }
-            nextRIP = rbp.getAddressAt(ADDRESS_SIZE);
-        }
+        Address nextRIP = isNative() ? dwarf.getReturnAddress() // current frame is in native
+                                     : rbp.getAddressAt(ADDRESS_SIZE); // current frame is in Java
         if (nextRIP == null) {
             return null;
         }
@@ -103,6 +96,7 @@ final public class LinuxAMD64CFrame extends BasicCFrame {
             } else { // current frame is in Java
                 nextRBP = rbp.getAddressAt(0);
                 nextRSP = rbp.getAddressAt(ADDRESS_SIZE * 2);
+                nextDwarf = dbg.createDwarfParser(libptr, nextRIP, nextRBP, nextRSP);
             }
         }
         return new LinuxAMD64CFrame(dbg, nextRBP, nextRSP, nextRIP, nextDwarf);
