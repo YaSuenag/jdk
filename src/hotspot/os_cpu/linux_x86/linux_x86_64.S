@@ -38,15 +38,6 @@
 
 	.text
 
-        .globl SpinPause
-        .align 16
-        .type  SpinPause,@function
-SpinPause:
-        rep
-        nop
-        movq   $1, %rax
-        ret
-
         # Support for void Copy::arrayof_conjoint_bytes(void* from,
         #                                               void* to,
         #                                               size_t count)

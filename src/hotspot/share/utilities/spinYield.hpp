@@ -26,12 +26,11 @@
 #define SHARE_UTILITIES_SPINYIELD_HPP
 
 #include "memory/allocation.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ticks.hpp"
 
 class outputStream;
-
-extern "C" int SpinPause();
 
 class SpinYield : public StackObj {
   Tickspan _sleep_time;
@@ -61,7 +60,7 @@ public:
     // not saturated, or (2) sleeping if yielding is ineffective.
     if (_spins < _spin_limit) {
       ++_spins;
-      SpinPause();
+      Atomic::SpinPause();
     } else {
       yield_or_sleep();
     }

@@ -59,7 +59,7 @@ void TaskTerminator::DelayContext::do_step() {
   } else {
     // Hard spin this time
     for (uint j = 0; j < _hard_spin_limit; j++) {
-      SpinPause();
+      Atomic::SpinPause();
     }
     _hard_spin_count++;
     // Increase the hard spinning period but only up to a limit.

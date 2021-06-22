@@ -222,4 +222,9 @@ struct Atomic::PlatformOrderedStore<8, RELEASE_X_FENCE>
 };
 #endif // AMD64
 
+ALWAYSINLINE int Atomic::SpinPause() {
+  __asm__ volatile("pause");
+  return 1;
+};
+
 #endif // OS_CPU_LINUX_X86_ATOMIC_LINUX_X86_HPP

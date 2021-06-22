@@ -783,7 +783,7 @@ static markWord read_stable_mark(oop obj) {
         gInflationLocks[ix]->unlock();
       }
     } else {
-      SpinPause();       // SMP-polite spinning
+      Atomic::SpinPause();       // SMP-polite spinning
     }
   }
 }

@@ -1843,7 +1843,7 @@ int ObjectMonitor::TrySpin(JavaThread* current) {
   if (ctr != 0) {
     while (--ctr >= 0) {
       if (TryLock(current) > 0) return 1;
-      SpinPause();
+      Atomic::SpinPause();
     }
     return 0;
   }
@@ -1860,7 +1860,7 @@ int ObjectMonitor::TrySpin(JavaThread* current) {
       }
       return 1;
     }
-    SpinPause();
+    Atomic::SpinPause();
   }
 
   // Admission control - verify preconditions for spinning
@@ -1913,7 +1913,7 @@ int ObjectMonitor::TrySpin(JavaThread* current) {
       if (SafepointMechanism::should_process(current)) {
         goto Abort;           // abrupt spin egress
       }
-      SpinPause();
+      Atomic::SpinPause();
     }
 
     // Probe _owner with TATAS

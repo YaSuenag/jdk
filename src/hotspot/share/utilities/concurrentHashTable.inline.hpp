@@ -119,7 +119,7 @@ inline void ConcurrentHashTable<CONFIG, F>::
       os::naked_yield();
       i = 0;
     } else {
-      SpinPause();
+      Atomic::SpinPause();
     }
   }
 }
@@ -603,7 +603,7 @@ ConcurrentHashTable<CONFIG, F>::
       os::naked_yield();
       i = 0;
     } else {
-      SpinPause();
+      Atomic::SpinPause();
     }
   }
   return bucket;
@@ -918,7 +918,7 @@ inline bool ConcurrentHashTable<CONFIG, F>::
     if (locked) {
       os::naked_yield();
     } else {
-      SpinPause();
+      Atomic::SpinPause();
     }
   }
 

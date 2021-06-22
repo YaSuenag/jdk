@@ -363,7 +363,7 @@ void ShenandoahFreeSet::recycle_trash() {
       ShenandoahHeapLocker locker(_heap->lock());
       try_recycle_trashed(r);
     }
-    SpinPause(); // allow allocators to take the lock
+    Atomic::SpinPause(); // allow allocators to take the lock
   }
 }
 

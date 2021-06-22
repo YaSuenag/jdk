@@ -736,7 +736,7 @@ void ShenandoahHeap::op_uncommit(double shrink_before, size_t shrink_until) {
         count++;
       }
     }
-    SpinPause(); // allow allocators to take the lock
+    Atomic::SpinPause(); // allow allocators to take the lock
   }
 
   if (count > 0) {
@@ -1751,7 +1751,7 @@ bool ShenandoahHeap::try_cancel_gc() {
       // We need to provide a safepoint here, otherwise we might
       // spin forever if a SP is pending.
       ThreadBlockInVM sp(thread->as_Java_thread());
-      SpinPause();
+      Atomic::SpinPause();
     }
   }
 }

@@ -3903,7 +3903,7 @@ void Thread::SpinAcquire(volatile int * adr, const char * LockName) {
           ++Yields;
         }
       } else {
-        SpinPause();
+        Atomic::SpinPause();
       }
     }
     if (Atomic::cmpxchg(adr, 0, 1) == 0) return;

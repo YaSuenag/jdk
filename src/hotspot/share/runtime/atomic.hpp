@@ -164,6 +164,8 @@ public:
   inline static bool replace_if_null(D* volatile* dest, T* value,
                                      atomic_memory_order order = memory_order_conservative);
 
+  inline static int SpinPause();
+
 private:
 WINDOWS_ONLY(public:) // VS2017 warns (C2027) use of undefined type if IsPointerConvertible is declared private
   // Test whether From is implicitly convertible to To.
