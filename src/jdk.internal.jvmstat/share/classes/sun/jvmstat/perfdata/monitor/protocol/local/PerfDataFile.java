@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package sun.jvmstat.perfdata.monitor.protocol.local;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.io.FilenameFilter;
@@ -142,6 +143,15 @@ public class PerfDataFile {
      * @return List<String> - A List of temporary directories to search.
      */
     public static List<String> getTempDirectories(int vmid) {
-        return platSupport.getTemporaryDirectories(vmid);
+        List<String> paths = platSupport.getTemporaryDirectories(vmid);
+        String perfDataAltPath = System.getenv("PERFDATA_ALTPATH");
+        if (perfDataAltPath != null) {
+            // We need to re-create the list
+            // because  platSupport.getTemporaryDirectories() may return immutable list.
+            paths = new LinkedList<>(paths);
+            // Then push altpath to first element.
+            ((LinkedList<String>)paths).offerFirst(perfDataAltPath);
+        }
+        return paths;
     }
 }
