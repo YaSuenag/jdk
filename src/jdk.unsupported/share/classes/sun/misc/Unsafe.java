@@ -1279,4 +1279,12 @@ public final class Unsafe {
 
         theInternalUnsafe.invokeCleaner(directBuffer);
     }
+
+    public long pin(Object obj) {
+        return theInternalUnsafe.pin(obj);
+    }
+
+    public void unpin(Object obj) {
+        theInternalUnsafe.unpin(obj);
+    }
 }

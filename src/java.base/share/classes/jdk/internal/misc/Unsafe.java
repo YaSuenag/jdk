@@ -3947,4 +3947,8 @@ public final class Unsafe {
     public final boolean weakCompareAndSetObjectRelease(Object o, long offset, Object expected, Object x) {
         return weakCompareAndSetReferenceRelease(o, offset, expected, x);
     }
+
+    public native long pin(Object obj);
+
+    public native void unpin(Object obj);
 }

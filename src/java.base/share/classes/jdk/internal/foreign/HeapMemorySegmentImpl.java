@@ -61,6 +61,8 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
     final long offset;
     final Object base;
 
+    protected long pinnedAddr;
+
     @Override
     public Optional<Object> heapBase() {
         return readOnly ?
@@ -73,6 +75,7 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
         super(length, readOnly, session);
         this.offset = offset;
         this.base = base;
+        this.pinnedAddr = 0L;
     }
 
     @Override
@@ -90,6 +93,28 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
         }
         JavaNioAccess nioAccess = SharedSecrets.getJavaNioAccess();
         return nioAccess.newHeapByteBuffer(baseByte, (int)offset - BYTE_ARR_BASE, (int) byteSize(), null);
+    }
+
+    @Override
+    public boolean isNative() {
+        return pinnedAddr != 0L;
+    }
+
+    @Override
+    public void pin() {
+        if (pinnedAddr != 0L) {
+            throw new IllegalStateException("This segment has been already pinned.");
+        }
+        pinnedAddr = UNSAFE.pin(base);
+    }
+
+    @Override
+    public void unpin() {
+        if (pinnedAddr == 0L) {
+            throw new IllegalStateException("This segment is not pinned.");
+        }
+        UNSAFE.unpin(base);
+        pinnedAddr = 0L;
     }
 
     // factories
@@ -124,7 +149,7 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
 
         @Override
         public long address() {
-            return offset - Unsafe.ARRAY_BYTE_BASE_OFFSET;
+            return pinnedAddr == 0L ? offset - Unsafe.ARRAY_BYTE_BASE_OFFSET : pinnedAddr;
         }
     }
 
@@ -158,7 +183,7 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
 
         @Override
         public long address() {
-            return offset - Unsafe.ARRAY_CHAR_BASE_OFFSET;
+            return pinnedAddr == 0L ? offset - Unsafe.ARRAY_CHAR_BASE_OFFSET : pinnedAddr;
         }
     }
 
@@ -192,7 +217,7 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
 
         @Override
         public long address() {
-            return offset - Unsafe.ARRAY_SHORT_BASE_OFFSET;
+            return pinnedAddr == 0L ? offset - Unsafe.ARRAY_SHORT_BASE_OFFSET : pinnedAddr;
         }
     }
 
@@ -226,7 +251,7 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
 
         @Override
         public long address() {
-            return offset - Unsafe.ARRAY_INT_BASE_OFFSET;
+            return pinnedAddr == 0L ? offset - Unsafe.ARRAY_INT_BASE_OFFSET : pinnedAddr;
         }
     }
 
@@ -260,7 +285,7 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
 
         @Override
         public long address() {
-            return offset - Unsafe.ARRAY_LONG_BASE_OFFSET;
+            return pinnedAddr == 0L ? offset - Unsafe.ARRAY_LONG_BASE_OFFSET : pinnedAddr;
         }
     }
 
@@ -294,7 +319,7 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
 
         @Override
         public long address() {
-            return offset - Unsafe.ARRAY_FLOAT_BASE_OFFSET;
+            return pinnedAddr == 0L ? offset - Unsafe.ARRAY_FLOAT_BASE_OFFSET : pinnedAddr;
         }
     }
 
@@ -328,7 +353,7 @@ public abstract sealed class HeapMemorySegmentImpl extends AbstractMemorySegment
 
         @Override
         public long address() {
-            return offset - Unsafe.ARRAY_DOUBLE_BASE_OFFSET;
+            return pinnedAddr == 0L ? offset - Unsafe.ARRAY_DOUBLE_BASE_OFFSET : pinnedAddr;
         }
     }
 

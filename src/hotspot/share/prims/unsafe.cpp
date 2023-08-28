@@ -327,6 +327,20 @@ UNSAFE_LEAF(void, Unsafe_FullFence(JNIEnv *env, jobject unsafe)) {
   OrderAccess::fence();
 } UNSAFE_END
 
+UNSAFE_ENTRY(jlong, Unsafe_Pin(JNIEnv *env, jobject unsafe, jarray obj)) {
+  Handle hnd(THREAD, JNIHandles::resolve_non_null(obj));
+  if (!hnd->is_typeArray()) {
+    THROW_0(vmSymbols::java_lang_IllegalArgumentException());
+  }
+  Universe::heap()->pin_object(THREAD, hnd());
+  BasicType type = TypeArrayKlass::cast(hnd->klass())->element_type();
+  return reinterpret_cast<jlong>(arrayOop(hnd())->base(type));
+} UNSAFE_END
+
+UNSAFE_ENTRY(void, Unsafe_Unpin(JNIEnv *env, jobject unsafe, jarray obj)) {
+  Universe::heap()->unpin_object(THREAD, JNIHandles::resolve_non_null(obj));
+} UNSAFE_END
+
 ////// Allocation requests
 
 UNSAFE_ENTRY(jobject, Unsafe_AllocateInstance(JNIEnv *env, jobject unsafe, jclass cls)) {
@@ -904,6 +918,10 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "shouldBeInitialized0", CC "(" CLS ")Z",         FN_PTR(Unsafe_ShouldBeInitialized0)},
 
     {CC "fullFence",          CC "()V",                  FN_PTR(Unsafe_FullFence)},
+
+    {CC "pin",                CC "(" OBJ ")J",           FN_PTR(Unsafe_Pin)},
+
+    {CC "unpin",              CC "(" OBJ ")V",           FN_PTR(Unsafe_Unpin)},
 };
 
 #undef CC

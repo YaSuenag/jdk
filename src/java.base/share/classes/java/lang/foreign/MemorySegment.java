@@ -2149,6 +2149,20 @@ public sealed interface MemorySegment permits AbstractMemorySegmentImpl {
     }
 
     /**
+     * Pin on-heap region
+     */
+    default void pin() {
+        throw new IllegalStateException("Should be on-heap segment");
+    }
+
+    /**
+     * Unpin on-heap region
+     */
+    default void unpin() {
+        throw new IllegalStateException("Should be on-heap segment");
+    }
+
+    /**
      * Compares the specified object with this memory segment for equality. Returns {@code true} if and only if the specified
      * object is also a memory segment, and if the two segments refer to the same location, in some region of memory.
      * More specifically, for two segments {@code s1} and {@code s2} to be considered equals, all the following must be true:
