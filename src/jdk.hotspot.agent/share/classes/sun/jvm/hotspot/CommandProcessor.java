@@ -33,6 +33,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.net.URI;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -113,6 +114,7 @@ public class CommandProcessor {
         public abstract void attach(int pid);
         public abstract void attach(String java, String core);
         public abstract void attach(String debugServerName);
+        public abstract void attach(URI uri);
         public abstract void detach();
         public abstract void reattach();
     }

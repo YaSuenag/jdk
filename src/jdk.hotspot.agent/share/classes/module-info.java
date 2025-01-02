@@ -38,8 +38,10 @@
 module jdk.hotspot.agent {
     requires java.datatransfer;
     requires java.desktop;
+    requires java.net.http;
     requires java.rmi;
     requires java.scripting;
+    requires jdk.httpserver;
 
     // RMI needs to serialize types in this package
     exports sun.jvm.hotspot.debugger.remote to java.rmi;

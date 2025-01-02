@@ -28,6 +28,7 @@ import sun.jvm.hotspot.*;
 import sun.jvm.hotspot.debugger.*;
 
 import java.io.*;
+import java.net.*;
 import java.util.*;
 
 public class CLHSDB {
@@ -69,6 +70,8 @@ public class CLHSDB {
             attachDebugger(execPath, coreFilename);
         } else if (debugServerName != null) {
             connect(debugServerName);
+        } else if (baseURI != null) {
+            connect(baseURI);
         }
 
 
@@ -87,6 +90,9 @@ public class CLHSDB {
                 }
                 public void attach(String debugServerName) {
                     connect(debugServerName);
+                }
+                public void attach(URI uri) {
+                    connect(uri);
                 }
                 public void detach() {
                     detachDebugger();
@@ -124,6 +130,7 @@ public class CLHSDB {
     private String execPath;
     private String coreFilename;
     private String debugServerName;
+    private URI baseURI;
 
     private void doUsage() {
         System.out.println("Usage:  java CLHSDB [[pid] | [path-to-java-executable [path-to-corefile]] | help ]");
@@ -139,6 +146,7 @@ public class CLHSDB {
         execPath = null;
         coreFilename = null;
         debugServerName = null;
+        baseURI = null;
 
         switch (args.length) {
         case (0):
@@ -154,7 +162,14 @@ public class CLHSDB {
                 pid = Integer.parseInt(args[0]);
             } catch (NumberFormatException e) {
                 // Attempt to connect to remote debug server
-                debugServerName = args[0];
+                baseURI = URI.create(args[0]);
+                try {
+                    // test whether baseURI is valid
+                    baseURI.toURL();
+                } catch (Exception urlEx) {
+                    baseURI = null;
+                    debugServerName = args[0];
+                }
             }
             break;
 
@@ -236,6 +251,18 @@ public class CLHSDB {
             agent.detach();
             e.printStackTrace();
             return;
+        }
+    }
+
+    private void connect(URI uri) {
+        try {
+            System.out.println("Connecting to debug HTTP server, please wait...");
+            agent.attach(uri);
+            attached = true;
+        }
+        catch (DebuggerException e) {
+            System.err.println("Unable to connect to debug server: " + uri);
+            e.printStackTrace();
         }
     }
 

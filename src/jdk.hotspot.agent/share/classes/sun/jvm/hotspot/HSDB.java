@@ -27,6 +27,7 @@ package sun.jvm.hotspot;
 import java.io.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.net.*;
 import javax.swing.*;
 import java.util.*;
 
@@ -1504,6 +1505,9 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
               }
               public void attach(String debugServerName) {
                   HSDB.this.connect(debugServerName);
+              }
+              public void attach(URI uri) {
+              // TODO
               }
               public void detach() {
                   detachDebugger();

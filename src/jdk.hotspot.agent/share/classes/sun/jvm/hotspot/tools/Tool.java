@@ -25,6 +25,7 @@
 package sun.jvm.hotspot.tools;
 
 import java.io.PrintStream;
+import java.net.URI;
 
 import sun.jvm.hotspot.HotSpotAgent;
 import sun.jvm.hotspot.debugger.DebuggerException;
@@ -43,6 +44,7 @@ public abstract class Tool implements Runnable {
    protected static final int DEBUGEE_PID    = 0;
    protected static final int DEBUGEE_CORE   = 1;
    protected static final int DEBUGEE_REMOTE = 2;
+   protected static final int DEBUGEE_HTTP_REMOTE = 3;
 
    public Tool() {
    }
@@ -62,6 +64,7 @@ public abstract class Tool implements Runnable {
               case HotSpotAgent.PROCESS_MODE   -> DEBUGEE_PID;
               case HotSpotAgent.CORE_FILE_MODE -> DEBUGEE_CORE;
               case HotSpotAgent.REMOTE_MODE    -> DEBUGEE_REMOTE;
+              case HotSpotAgent.REMOTE_HTTP_MODE -> DEBUGEE_HTTP_REMOTE;
               default -> throw new IllegalStateException("Invalid attach mode");
           };
       }
@@ -180,7 +183,13 @@ public abstract class Tool implements Runnable {
            } catch (NumberFormatException e) {
               // try remote server
               remoteServer = args[0];
-              debugeeType  = DEBUGEE_REMOTE;
+              // test whether the arg is valid as URI
+              try {
+                  URI.create(remoteServer).toURL();
+                  debugeeType  = DEBUGEE_REMOTE;
+              } catch (Exception _) {
+                  debugeeType = DEBUGEE_HTTP_REMOTE;
+              }
            }
            break;
 
@@ -212,6 +221,11 @@ public abstract class Tool implements Runnable {
           case DEBUGEE_REMOTE:
              out.println("Attaching to remote server " + remoteServer + ", please wait...");
              agent.attach(remoteServer);
+             break;
+
+          case DEBUGEE_HTTP_REMOTE:
+             out.println("Attaching to HTTP server " + remoteServer + ", please wait...");
+             agent.attach(URI.create(remoteServer));
              break;
         }
       }

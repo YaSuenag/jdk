@@ -25,6 +25,9 @@
 
 package sun.jvm.hotspot;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.rmi.RemoteException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -44,6 +47,8 @@ import sun.jvm.hotspot.debugger.linux.LinuxDebuggerLocal;
 import sun.jvm.hotspot.debugger.remote.RemoteDebugger;
 import sun.jvm.hotspot.debugger.remote.RemoteDebuggerClient;
 import sun.jvm.hotspot.debugger.remote.RemoteDebuggerServer;
+import sun.jvm.hotspot.debugger.remote.RemoteDebuggerHttpServer;
+import sun.jvm.hotspot.debugger.remote.RemoteHttpDebugger;
 import sun.jvm.hotspot.debugger.windbg.WindbgDebuggerLocal;
 import sun.jvm.hotspot.runtime.VM;
 import sun.jvm.hotspot.types.TypeDataBase;
@@ -77,10 +82,16 @@ public class HotSpotAgent {
     public static final int PROCESS_MODE   = 0;
     public static final int CORE_FILE_MODE = 1;
     public static final int REMOTE_MODE    = 2;
+    public static final int REMOTE_HTTP_MODE = 3;
     private int startupMode;
+
+    private URI baseURI;
 
     // This indicates whether we are really starting a server or not
     private boolean isServer;
+    private boolean isHttpServer;
+
+    private InetSocketAddress httpEndpoint;
 
     // All possible required information for connecting
     private int pid;
@@ -106,7 +117,7 @@ public class HotSpotAgent {
         new Runnable() {
             public void run() {
                 synchronized (HotSpotAgent.this) {
-                    if (!isServer) {
+                    if (!isServer || !isHttpServer) {
                         detach();
                     }
                 }
@@ -139,6 +150,7 @@ public class HotSpotAgent {
         pid = processID;
         startupMode = PROCESS_MODE;
         isServer = false;
+        isHttpServer = false;
         go();
     }
 
@@ -155,6 +167,7 @@ public class HotSpotAgent {
         this.coreFileName = coreFileName;
         startupMode = CORE_FILE_MODE;
         isServer = false;
+        isHttpServer = false;
         go();
     }
 
@@ -163,6 +176,7 @@ public class HotSpotAgent {
     throws DebuggerException {
         debugger = d;
         isServer = false;
+        isHttpServer = false;
         go();
     }
 
@@ -182,13 +196,31 @@ public class HotSpotAgent {
         debugServerID = remoteServerID;
         startupMode = REMOTE_MODE;
         isServer = false;
+        isHttpServer = false;
+        go();
+    }
+
+    public synchronized void attach(URI baseURI)
+    throws DebuggerException {
+        if (debugger != null) {
+            throw new DebuggerException("Already attached to a process");
+        }
+        if (baseURI == null) {
+            throw new DebuggerException("Debug server id must be specified");
+        }
+
+        debugServerID = null;
+        startupMode = REMOTE_HTTP_MODE;
+        isServer = false;
+        isHttpServer = false;
+        this.baseURI = baseURI;
         go();
     }
 
     /** This should only be called by the user on the client machine,
       not the server machine */
     public synchronized boolean detach() throws DebuggerException {
-        if (isServer) {
+        if (isServer || isHttpServer) {
             throw new DebuggerException("Should not call detach() for server configuration");
         }
         return detachInternal();
@@ -287,6 +319,29 @@ public class HotSpotAgent {
         startServer(javaExecutableName, coreFileName, null, null);
     }
 
+    public synchronized void startServer(int processID, InetSocketAddress endpoint) {
+        if (debugger != null) {
+            throw new DebuggerException("Already attached");
+        }
+        pid = processID;
+        startupMode = PROCESS_MODE;
+        isHttpServer = true;
+        httpEndpoint = endpoint;
+        go();
+    }
+
+    public synchronized void startServer(String javaExecutableName, String coreFileName, InetSocketAddress endpoint) {
+        if (debugger != null) {
+            throw new DebuggerException("Already attached");
+        }
+        this.javaExecutableName = javaExecutableName;
+        this.coreFileName = coreFileName;
+        startupMode = CORE_FILE_MODE;
+        isHttpServer = true;
+        httpEndpoint = endpoint;
+        go();
+    }
+
     /** This may only be called on the server side after startServer()
       has been called */
     @Deprecated(since="24", forRemoval=true)
@@ -295,6 +350,13 @@ public class HotSpotAgent {
             throw new DebuggerException("Should not call shutdownServer() for client configuration");
         }
         return detachInternal();
+    }
+
+    public synchronized boolean shutdownHttpServer() throws DebuggerException {
+        if (!isHttpServer) {
+            throw new DebuggerException("Should not call shutdownHttpServer() for client configuration");
+        }
+        return detachHttpServerInternal();
     }
 
 
@@ -340,13 +402,51 @@ public class HotSpotAgent {
         return retval;
     }
 
+    private boolean detachHttpServerInternal() {
+        if (debugger == null) {
+            return false;
+        }
+        boolean retval = true;
+        if (!isHttpServer) {
+            VM.shutdown();
+        }
+        // We must not call detach() if we are a client and are connected
+        // to a remote debugger
+        Debugger dbg = null;
+        DebuggerException ex = null;
+        if (isHttpServer) {
+            try {
+                RemoteDebuggerHttpServer.shutdown();
+            }
+            catch (DebuggerException de) {
+                ex = de;
+            }
+            dbg = debugger;
+        } else {
+            if (startupMode != REMOTE_MODE) {
+                dbg = debugger;
+            }
+        }
+        if (dbg != null) {
+            retval = dbg.detach();
+        }
+
+        debugger = null;
+        machDesc = null;
+        db = null;
+        if (ex != null) {
+            throw(ex);
+        }
+        return retval;
+    }
+
     private void go() {
         setupDebugger();
         setupVM();
     }
 
     private void setupDebugger() {
-        if (startupMode != REMOTE_MODE) {
+        if ((startupMode == PROCESS_MODE) || (startupMode == CORE_FILE_MODE)) {
             //
             // Local mode (client attaching to local process or setting up
             // server, but not client attaching to server)
@@ -393,12 +493,21 @@ public class HotSpotAgent {
                 }
                 RMIHelper.rebind(serverID, serverName, remote);
             }
-        } else {
+            else if (isHttpServer) {
+                try {
+                    RemoteDebuggerHttpServer.create(debugger, httpEndpoint);
+                } catch (IOException e) {
+                    throw new DebuggerException(e);
+                }
+            }
+        } else if (startupMode == REMOTE_MODE){
             //
             // Remote mode (client attaching to server)
             //
 
             connectRemoteDebugger();
+        } else if (startupMode == REMOTE_HTTP_MODE) {
+            connectRemoteHttpDebugger(baseURI);
         }
     }
 
@@ -435,7 +544,7 @@ public class HotSpotAgent {
             e.getSymbol() + "\" in remote process)", e);
         }
 
-        if (startupMode != REMOTE_MODE) {
+        if ((startupMode != REMOTE_MODE) && (startupMode != REMOTE_HTTP_MODE)) {
             // Configure the debugger with the primitive type sizes just obtained from the VM
             debugger.configureJavaPrimitiveTypeSizes(db.getJBooleanType().getSize(),
             db.getJByteType().getSize(),
@@ -501,6 +610,14 @@ public class HotSpotAgent {
         cpu = debugger.getCPU();
     }
 
+    private void connectRemoteHttpDebugger(URI baseURI) throws DebuggerException {
+        debugger = new RemoteDebuggerClient(new RemoteHttpDebugger(baseURI));
+        machDesc = debugger.getMachineDescription();
+        os = debugger.getOS();
+        setupJVMLibNames(os);
+        cpu = debugger.getCPU();
+    }
+
     private void setupJVMLibNames(String os) {
         if (os.equals("win32")) {
             setupJVMLibNamesWin32();
@@ -536,7 +653,7 @@ public class HotSpotAgent {
         // mode; it will be taken care of on the client side (once remote
         // debugging is implemented).
 
-        debugger = new WindbgDebuggerLocal(machDesc, !isServer);
+        debugger = new WindbgDebuggerLocal(machDesc, !isServer && !isHttpServer);
 
         attachDebugger();
 
@@ -575,7 +692,7 @@ public class HotSpotAgent {
         }
 
         LinuxDebuggerLocal dbg =
-        new LinuxDebuggerLocal(machDesc, !isServer);
+        new LinuxDebuggerLocal(machDesc, !isServer && !isHttpServer);
         debugger = dbg;
 
         attachDebugger();
@@ -600,7 +717,7 @@ public class HotSpotAgent {
             throw new DebuggerException("BSD only supported on x86/x86_64. Current arch: " + cpu);
         }
 
-        BsdDebuggerLocal dbg = new BsdDebuggerLocal(machDesc, !isServer);
+        BsdDebuggerLocal dbg = new BsdDebuggerLocal(machDesc, !isServer && !isHttpServer);
         debugger = dbg;
 
         attachDebugger();
@@ -625,7 +742,7 @@ public class HotSpotAgent {
             throw new DebuggerException("Darwin only supported on x86_64/aarch64. Current arch: " + cpu);
         }
 
-        BsdDebuggerLocal dbg = new BsdDebuggerLocal(machDesc, !isServer);
+        BsdDebuggerLocal dbg = new BsdDebuggerLocal(machDesc, !isServer && !isHttpServer);
         debugger = dbg;
 
         attachDebugger();

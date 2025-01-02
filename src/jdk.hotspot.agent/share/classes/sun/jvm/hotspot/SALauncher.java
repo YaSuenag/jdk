@@ -24,6 +24,7 @@
 
 package sun.jvm.hotspot;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -177,8 +178,9 @@ public class SALauncher {
         String exe = newArgMap.remove("exe");
         String core = newArgMap.remove("core");
         String connect = newArgMap.remove("connect");
-        if (!allowEmpty && (pid == null) && (exe == null) && (connect == NO_REMOTE)) {
-            throw new SAGetoptException("You have to set --pid or --exe or --connect.");
+        String httpconnect = newArgMap.remove("httpconnect");
+        if (!allowEmpty && (pid == null) && (exe == null) && (connect == NO_REMOTE) && (httpconnect == NO_REMOTE)) {
+            throw new SAGetoptException("You have to set --pid or --exe or --connect or --httpconnect.");
         }
 
         List<String> newArgs = new ArrayList<>();
@@ -218,6 +220,8 @@ public class SALauncher {
         } else if (connect != NO_REMOTE) {
             System.err.println("WARNING: --connect is deprecated and will be removed in a future release.");
             newArgs.add(connect);
+        } else if (httpconnect != NO_REMOTE) {
+            newArgs.add(httpconnect);
         }
 
         return newArgs.toArray(new String[0]);
@@ -280,7 +284,8 @@ public class SALauncher {
         Map<String, String> longOptsMap = Map.of("exe=", "exe",
                                                  "core=", "core",
                                                  "pid=", "pid",
-                                                 "connect=", "connect");
+                                                 "connect=", "connect",
+                                                 "httpconnect=", "httpconnect");
         Map<String, String> newArgMap = parseOptions(oldArgs, longOptsMap);
         CLHSDB.main(buildAttachArgs(newArgMap, true));
     }
@@ -468,6 +473,70 @@ public class SALauncher {
 
     }
 
+    private static void runHTTPSERVER(String[] args) {
+        // By default SA agent classes prefer Windows process debugger
+        // to windbg debugger. SA expects special properties to be set
+        // to choose other debuggers. We will set those here before
+        // attaching to SA agent.
+        System.setProperty("sun.jvm.hotspot.debugger.useWindbgDebugger", "true");
+
+        Map<String, String> longOptsMap = Map.of("exe=", "exe",
+                "core=", "core",
+                "pid=", "pid",
+                "host=", "host",
+                "port=", "port");
+
+        Map<String, String> argMap = parseOptions(args, longOptsMap);
+
+        // Run the basic check for the options. If the check fails
+        // SAGetoptException will be thrown
+        buildAttachArgs(new HashMap<>(argMap), false);
+
+        var javaExecutableName = argMap.get("exe");
+        var coreFileName = argMap.get("core");
+        var pidString = argMap.get("pid");
+
+        var host = argMap.get("host");
+        var port = Integer.parseInt(argMap.get("port"));
+        var addr = new InetSocketAddress(host, port);
+
+        final HotSpotAgent agent = new HotSpotAgent();
+
+        if (pidString != null) {
+            int pid = 0;
+            try {
+                pid = Integer.parseInt(pidString);
+            } catch (NumberFormatException ex) {
+                throw new SAGetoptException("Invalid pid: " + pidString);
+            }
+            System.err.println("Attaching to process ID " + pid + " and starting HTTP services," +
+                    " please wait...");
+            try {
+                agent.startServer(pid, addr);
+            } catch (DebuggerException e) {
+                System.err.print("Error attaching to process or starting server: ");
+                e.printStackTrace();
+                System.exit(1);
+            } catch (NumberFormatException ex) {
+                throw new SAGetoptException("Invalid pid: " + pid);
+            }
+        } else if (javaExecutableName != null) {
+            System.err.println("Attaching to core " + coreFileName +
+                    " from executable " + javaExecutableName + " and starting RMI services, please wait...");
+            try {
+                agent.startServer(javaExecutableName, coreFileName, addr);
+            } catch (DebuggerException e) {
+                System.err.print("Error attaching to core file or starting server: ");
+                e.printStackTrace();
+                System.exit(1);
+            }
+        }
+        // shutdown hook to clean-up the server in case of forced exit.
+        Runtime.getRuntime().addShutdownHook(new java.lang.Thread(agent::shutdownHttpServer));
+        System.err.println("Debugger attached and HTTP services started." + addr.toString());
+
+    }
+
     // Key: tool name, Value: launcher method
     private static Map<String, Consumer<String[]>> toolMap =
         Map.of("clhsdb", SALauncher::runCLHSDB,
@@ -476,7 +545,8 @@ public class SALauncher {
                "jmap", SALauncher::runJMAP,
                "jinfo", SALauncher::runJINFO,
                "jsnap", SALauncher::runJSNAP,
-               "debugd", SALauncher::runDEBUGD);
+               "debugd", SALauncher::runDEBUGD,
+               "httpserver", SALauncher::runHTTPSERVER);
 
     public static void main(String[] args) {
         // Provide a help
