@@ -304,6 +304,7 @@ public class SALauncher {
                                                  "core=", "core",
                                                  "pid=", "pid",
                                                  "connect=", "connect",
+                                                 "httpconnect=", "httpconnect",
                                                  "mixed", "-m",
                                                  "locks", "-l");
         Map<String, String> newArgMap = parseOptions(oldArgs, longOptsMap);
@@ -317,6 +318,7 @@ public class SALauncher {
                 Map.entry("core=", "core"),
                 Map.entry("pid=", "pid"),
                 Map.entry("connect=", "connect"),
+                Map.entry("httpconnect=", "httpconnect"),
                 Map.entry("heap", "-heap"),
                 Map.entry("binaryheap", "binaryheap"),
                 Map.entry("dumpfile=", "dumpfile"),
@@ -354,6 +356,7 @@ public class SALauncher {
                                                  "core=", "core",
                                                  "pid=", "pid",
                                                  "connect=", "connect",
+                                                 "httpconnect=", "httpconnect",
                                                  "flags", "-flags",
                                                  "sysprops", "-sysprops");
         Map<String, String> newArgMap = parseOptions(oldArgs, longOptsMap);
@@ -365,6 +368,7 @@ public class SALauncher {
                                                  "core=", "core",
                                                  "pid=", "pid",
                                                  "connect=", "connect",
+                                                 "httpconnect=", "httpconnect",
                                                  "all", "-a");
         Map<String, String> newArgMap = parseOptions(oldArgs, longOptsMap);
         JSnap.main(buildAttachArgs(newArgMap, false));

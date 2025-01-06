@@ -186,9 +186,9 @@ public abstract class Tool implements Runnable {
               // test whether the arg is valid as URI
               try {
                   URI.create(remoteServer).toURL();
-                  debugeeType  = DEBUGEE_REMOTE;
+                  debugeeType  = DEBUGEE_HTTP_REMOTE;
               } catch (Exception _) {
-                  debugeeType = DEBUGEE_HTTP_REMOTE;
+                  debugeeType = DEBUGEE_REMOTE;
               }
            }
            break;
