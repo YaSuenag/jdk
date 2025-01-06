@@ -437,8 +437,13 @@ public class CommandProcessor {
                         // Attempt to attach as a PID
                         debugger.attach(Integer.parseInt(arg));
                     } catch (NumberFormatException e) {
-                        // Attempt to connect to remote debug server
-                        debugger.attach(arg);
+                        // Attempt to connect to remote HTTP debug server
+                        try {
+                            debugger.attach(URI.create(arg));
+                        } catch (Exception _) {
+                            // Attempt to connect to remote debug server
+                            debugger.attach(arg);
+                        }
                     }
                     postAttach();
                 } else if (tokens == 2) {
