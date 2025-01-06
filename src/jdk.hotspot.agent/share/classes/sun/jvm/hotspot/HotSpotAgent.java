@@ -117,7 +117,7 @@ public class HotSpotAgent {
         new Runnable() {
             public void run() {
                 synchronized (HotSpotAgent.this) {
-                    if (!isServer || !isHttpServer) {
+                    if (!isServer && !isHttpServer) {
                         detach();
                     }
                 }
@@ -385,7 +385,7 @@ public class HotSpotAgent {
             }
             dbg = debugger;
         } else {
-            if (startupMode != REMOTE_MODE) {
+            if ((startupMode != REMOTE_MODE) && (startupMode != REMOTE_HTTP_MODE)) {
                 dbg = debugger;
             }
         }
@@ -423,7 +423,7 @@ public class HotSpotAgent {
             }
             dbg = debugger;
         } else {
-            if (startupMode != REMOTE_MODE) {
+            if (startupMode != REMOTE_HTTP_MODE) {
                 dbg = debugger;
             }
         }
