@@ -65,11 +65,13 @@ public class SALauncher {
         // --exe <exe>
         // --core <core>
         // --connect [<id>@]<host>[:registryport]
+        // --httpconnect <http endpoint>
         System.out.println("    --pid <pid>             To attach to and operate on the given live process.");
         System.out.println("    --core <corefile>       To operate on the given core file.");
         System.out.println("    --exe <executable for corefile>");
         if (canConnectToRemote) {
             System.out.println("    --connect [<serverid>@]<host>[:registryport][/servername] To connect to a remote debug server (debugd).");
+            System.out.println("    --httpconnect <http endpoint> To connect to a remote HTTP debug server.");
         }
         System.out.println();
         if (canConnectToRemote) {
@@ -80,7 +82,7 @@ public class SALauncher {
         System.out.println("    absolute or relative paths.");
         System.out.println("    The --pid option can be set to operate on a live process.");
         if (canConnectToRemote) {
-            System.out.println("    --core, --pid, and --connect are mutually exclusive.");
+            System.out.println("    --core, --pid, --connect, and --httpconnect are mutually exclusive.");
         } else {
             System.out.println("    --core and --pid are mutually exclusive.");
         }
@@ -89,6 +91,7 @@ public class SALauncher {
         System.out.println("          or  jhsdb " + mode + " --core ./core.1234 --exe ./myexe");
         if (canConnectToRemote) {
             System.out.println("          or  jhsdb " + mode + " --connect serverid@debugserver:1234/servername");
+            System.out.println("          or  jhsdb " + mode + " --httpconnect http://debugserver:8080/");
         }
         return false;
     }
