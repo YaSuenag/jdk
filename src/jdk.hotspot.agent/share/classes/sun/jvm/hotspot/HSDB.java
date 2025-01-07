@@ -83,6 +83,7 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
   private String execPath;
   private String coreFilename;
   private String debugServerName;
+  private URI baseURI;
 
   private void doUsage() {
     System.out.println("Usage:  java HSDB [[pid] | [path-to-java-executable [path-to-corefile]] | help ]");
@@ -121,7 +122,14 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
         pid = Integer.parseInt(args[0]);
       } catch (NumberFormatException e) {
         // Attempt to connect to remote debug server
-        debugServerName = args[0];
+        baseURI = URI.create(args[0]);
+        try {
+          // test whether baseURI is valid
+          baseURI.toURL();
+        } catch (Exception _) {
+          baseURI = null;
+          debugServerName = args[0];
+        }
       }
       break;
 
@@ -453,6 +461,8 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
       attach(execPath, coreFilename);
     } else if (debugServerName != null) {
       connect(debugServerName);
+    } else if (baseURI != null) {
+      connect(baseURI);
     }
   }
 
@@ -666,7 +676,16 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
           desktop.remove(dialog);
           workerThread.invokeLater(new Runnable() {
               public void run() {
-                connect(pidTextField.getText());
+                var server = pidTextField.getText();
+                try {
+                  baseURI = URI.create(server);
+                  baseURI.toURL();
+                  connect(baseURI);
+                } catch (Exception _) {
+                  baseURI = null;
+                  debugServerName = server;
+                  connect(debugServerName);
+                }
               }
             });
         }
@@ -1339,6 +1358,52 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
     showThreadsDialog();
   }
 
+  private void connect(final URI baseURI) {
+    Runnable remover = new Runnable() {
+          public void run() {
+            attachWaitDialog.setVisible(false);
+            desktop.remove(attachWaitDialog);
+            attachWaitDialog = null;
+          }
+    };
+
+    try {
+      SwingUtilities.invokeLater(new Runnable() {
+          public void run() {
+            JOptionPane pane = new JOptionPane("Connecting to debug server, please wait...", JOptionPane.INFORMATION_MESSAGE);
+            pane.setOptions(new Object[] {});
+            attachWaitDialog = pane.createInternalFrame(desktop, "Connecting to Debug Server");
+            attachWaitDialog.show();
+          }
+        });
+
+      agent.attach(baseURI);
+      if (agent.getDebugger().hasConsole()) {
+        showDbgConsoleMenuItem.setEnabled(true);
+      }
+      attached = true;
+      SwingUtilities.invokeLater(remover);
+    }
+    catch (DebuggerException e) {
+      SwingUtilities.invokeLater(remover);
+      final String errMsg = formatMessage(e.getMessage(), 80);
+      SwingUtilities.invokeLater(new Runnable() {
+          public void run() {
+            setMenuItemsEnabled(attachMenuItems, true);
+            JOptionPane.showInternalMessageDialog(desktop,
+                                                  "Unable to connect to machine \"" + baseURI.toString() + "\":\n\n" + errMsg,
+                                                  "Unable to Connect",
+                                                  JOptionPane.WARNING_MESSAGE);
+          }
+        });
+      agent.detach();
+      return;
+    }
+
+    // OK, the VM should be available. Create the Threads dialog.
+    showThreadsDialog();
+  }
+
   private void detachDebugger() {
     if (!attached) {
       return;
@@ -1507,7 +1572,7 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
                   HSDB.this.connect(debugServerName);
               }
               public void attach(URI uri) {
-              // TODO
+                  HSDB.this.connect(uri);
               }
               public void detach() {
                   detachDebugger();
@@ -1520,6 +1585,8 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
                       attach(pid);
                   } else if (debugServerName != null) {
                       connect(debugServerName);
+                  } else if (baseURI != null) {
+                      connect(baseURI);
                   } else {
                       attach(execPath, coreFilename);
                   }

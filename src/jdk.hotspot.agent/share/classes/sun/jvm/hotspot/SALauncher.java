@@ -297,7 +297,8 @@ public class SALauncher {
         Map<String, String> longOptsMap = Map.of("exe=", "exe",
                                                  "core=", "core",
                                                  "pid=", "pid",
-                                                 "connect=", "connect");
+                                                 "connect=", "connect",
+                                                 "httpconnect=", "httpconnect");
         Map<String, String> newArgMap = parseOptions(oldArgs, longOptsMap);
         HSDB.main(buildAttachArgs(newArgMap, true));
     }
