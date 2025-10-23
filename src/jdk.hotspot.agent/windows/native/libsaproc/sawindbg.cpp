@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -861,4 +861,51 @@ JNIEXPORT jobject JNICALL Java_sun_jvm_hotspot_debugger_windbg_WindbgDebuggerLoc
   jobject res = env->CallObjectMethod(obj, createClosestSymbol_ID, sym, disp);
   CHECK_EXCEPTION_(0);
   return res;
+}
+
+/*
+ * Class:     sun_jvm_hotspot_debugger_windbg_WindbgDebuggerLocal
+ * Method:    getFrameBase0
+ * Signature: (JJ)J
+ */
+JNIEXPORT jlong JNICALL Java_sun_jvm_hotspot_debugger_windbg_WindbgDebuggerLocal_getFrameBase0
+    (JNIEnv *env, jobject obj, jlong sp, jlong pc) {
+  IDebugControl* ptrIDebugControl = (IDebugControl*)env->GetLongField(obj, ptrIDebugControl_ID);
+  CHECK_EXCEPTION_(0);
+
+  DEBUG_STACK_FRAME frames;
+  ULONG filled;
+  HRESULT result = ptrIDebugControl->GetStackTrace(0, sp, pc, &frames, 1, &filled);
+
+  return (result != S_OK || filled != 1) ? 0 : frames.FrameOffset;
+}
+
+/*
+ * Class:     sun_jvm_hotspot_debugger_windbg_WindbgDebuggerLocal
+ * Method:    getSenderRegs0
+ * Signature: (JJ)[J
+ */
+JNIEXPORT jlongArray JNICALL Java_sun_jvm_hotspot_debugger_windbg_WindbgDebuggerLocal_getSenderRegs0
+    (JNIEnv *env, jobject obj, jlong sp, jlong pc) {
+  IDebugControl* ptrIDebugControl = (IDebugControl*)env->GetLongField(obj, ptrIDebugControl_ID);
+  CHECK_EXCEPTION_(nullptr);
+
+  DEBUG_STACK_FRAME frames[2];
+  ULONG filled;
+  HRESULT dbg_result = ptrIDebugControl->GetStackTrace(0, sp, pc, frames, 2, &filled);
+  if (dbg_result != S_OK || filled != 2) {
+    return nullptr;
+  }
+
+  jlongArray result = env->NewLongArray(2);
+  CHECK_EXCEPTION_(nullptr);
+  if (result == nullptr) {
+    return nullptr;
+  }
+
+  jlong regs[] = { static_cast<jlong>(frames[1].StackOffset), static_cast<jlong>(frames[1].InstructionOffset) };
+  env->SetLongArrayRegion(result, 0, 2, regs);
+  CHECK_EXCEPTION_(nullptr);
+
+  return result;
 }

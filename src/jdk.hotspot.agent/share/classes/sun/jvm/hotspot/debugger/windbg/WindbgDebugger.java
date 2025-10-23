@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,4 +90,10 @@ public interface WindbgDebugger extends JVMDebugger {
   //   public ThreadProxy getThreadForIdentifierAddress(Address addr);
 
   public int getAddressSize();
+
+  public Address getFrameBase(Address sp, Address pc);
+
+  public static record SenderRegs(Address nextSP, Address nextPC) {};
+
+  public SenderRegs getSenderRegs(Address sp, Address pc);
 }

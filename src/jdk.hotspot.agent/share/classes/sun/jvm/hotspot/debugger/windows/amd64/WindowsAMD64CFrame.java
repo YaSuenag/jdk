@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,41 +31,31 @@ import sun.jvm.hotspot.debugger.cdbg.basic.*;
 import sun.jvm.hotspot.debugger.windbg.*;
 
 public class WindowsAMD64CFrame extends BasicCFrame {
-  private Address rbp;
+  private Address rsp;
   private Address pc;
 
   private static final int ADDRESS_SIZE = 8;
 
   /** Constructor for topmost frame */
-  public WindowsAMD64CFrame(WindbgDebugger dbg, Address rbp, Address pc) {
+  public WindowsAMD64CFrame(WindbgDebugger dbg, Address rsp, Address pc) {
     super(dbg.getCDebugger());
-    this.rbp = rbp;
+    this.rsp = rsp;
     this.pc  = pc;
     this.dbg = dbg;
   }
 
   public CFrame sender(ThreadProxy thread) {
-    AMD64ThreadContext context = (AMD64ThreadContext) thread.getContext();
-    Address rsp = context.getRegisterAsAddress(AMD64ThreadContext.RSP);
-
-    if ( (rbp == null) || rbp.lessThan(rsp) ) {
+    WindbgDebugger.SenderRegs senderRegs = dbg.getSenderRegs(rsp, pc);
+    if (senderRegs == null) {
       return null;
     }
-
-    // Check alignment of rbp
-    if ( dbg.getAddressValue(rbp) % ADDRESS_SIZE != 0) {
-        return null;
-    }
-
-    Address nextRBP = rbp.getAddressAt( 0 * ADDRESS_SIZE);
-    if (nextRBP == null || nextRBP.lessThanOrEqual(rbp)) {
+    if (senderRegs.nextSP() == null || senderRegs.nextSP().lessThanOrEqual(rsp)) {
       return null;
     }
-    Address nextPC  = rbp.getAddressAt( 1 * ADDRESS_SIZE);
-    if (nextPC == null) {
+    if (senderRegs.nextPC() == null) {
       return null;
     }
-    return new WindowsAMD64CFrame(dbg, nextRBP, nextPC);
+    return new WindowsAMD64CFrame(dbg, senderRegs.nextSP(), senderRegs.nextPC());
   }
 
   public Address pc() {
@@ -73,7 +63,7 @@ public class WindowsAMD64CFrame extends BasicCFrame {
   }
 
   public Address localVariableBase() {
-    return rbp;
+    return dbg.getFrameBase(rsp, pc);
   }
 
   private WindbgDebugger dbg;

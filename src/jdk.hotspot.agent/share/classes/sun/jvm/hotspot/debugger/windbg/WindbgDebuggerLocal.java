@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -227,6 +227,16 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
 
   public synchronized ClosestSymbol lookup(long address) {
     return lookupByAddress0(address);
+  }
+
+  public synchronized Address getFrameBase(Address sp, Address pc) {
+    long rawAddr = getFrameBase0(sp.asLongValue(), pc.asLongValue());
+    return newAddress(rawAddr);
+  }
+
+  public synchronized SenderRegs getSenderRegs(Address sp, Address pc) {
+    long[] rawSenderRegs = getSenderRegs0(sp.asLongValue(), pc.asLongValue());
+    return rawSenderRegs == null ? null : new SenderRegs(newAddress(rawSenderRegs[0]), newAddress(rawSenderRegs[1]));
   }
 
   /** From the Debugger interface */
@@ -646,6 +656,8 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
   private native String consoleExecuteCommand0(String cmd);
   private native long lookupByName0(String objName, String symName);
   private native ClosestSymbol lookupByAddress0(long address);
+  private native long getFrameBase0(long sp, long pc);
+  private native long[] getSenderRegs0(long sp, long pc);
 
   // helper called lookupByAddress0
   private ClosestSymbol createClosestSymbol(String symbol, long diff) {

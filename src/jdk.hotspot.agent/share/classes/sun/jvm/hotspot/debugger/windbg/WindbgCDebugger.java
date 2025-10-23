@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,11 +69,11 @@ class WindbgCDebugger implements CDebugger {
   public CFrame topFrameForThread(ThreadProxy thread) throws DebuggerException {
     if (dbg.getCPU().equals("amd64")) {
       AMD64ThreadContext context = (AMD64ThreadContext) thread.getContext();
-      Address rbp = context.getRegisterAsAddress(AMD64ThreadContext.RBP);
-      if (rbp == null) return null;
+      Address rsp = context.getRegisterAsAddress(AMD64ThreadContext.RSP);
+      if (rsp == null) return null;
       Address pc  = context.getRegisterAsAddress(AMD64ThreadContext.RIP);
       if (pc == null) return null;
-      return new WindowsAMD64CFrame(dbg, rbp, pc);
+      return new WindowsAMD64CFrame(dbg, rsp, pc);
     } else {
       // unsupported CPU!
       return null;
