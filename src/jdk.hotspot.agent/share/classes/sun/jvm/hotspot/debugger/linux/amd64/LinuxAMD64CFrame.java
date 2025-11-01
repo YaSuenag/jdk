@@ -24,17 +24,22 @@
 
 package sun.jvm.hotspot.debugger.linux.amd64;
 
+import java.util.function.Function;
+
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.debugger.amd64.*;
 import sun.jvm.hotspot.debugger.linux.*;
+import sun.jvm.hotspot.debugger.linux.amd64.*;
 import sun.jvm.hotspot.debugger.cdbg.*;
 import sun.jvm.hotspot.debugger.cdbg.basic.*;
 
 public final class LinuxAMD64CFrame extends BasicCFrame {
 
-   public static LinuxAMD64CFrame getTopFrame(LinuxDebugger dbg, Address rip, ThreadContext context) {
+   private static LinuxAMD64CFrame getFrameFromReg(LinuxDebugger dbg, Function<Integer, Address> getreg) {
+      Address rip = getreg.apply(AMD64ThreadContext.RIP);
+      Address rsp = getreg.apply(AMD64ThreadContext.RSP);
       Address libptr = dbg.findLibPtrByAddress(rip);
-      Address cfa = context.getRegisterAsAddress(AMD64ThreadContext.RBP);
+      Address cfa = getreg.apply(AMD64ThreadContext.RBP);
       DwarfParser dwarf = null;
 
       if (libptr != null) { // Native frame
@@ -45,30 +50,35 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
           // DWARF processing should succeed when the frame is native
           // but it might fail if Common Information Entry (CIE) has language
           // personality routine and/or Language Specific Data Area (LSDA).
-          return new LinuxAMD64CFrame(dbg, cfa, rip, dwarf, true);
+          return new LinuxAMD64CFrame(dbg, cfa, rsp, rip, dwarf, true);
         }
         cfa = ((dwarf.getCFARegister() == AMD64ThreadContext.RBP) &&
                !dwarf.isBPOffsetAvailable())
-                  ? context.getRegisterAsAddress(AMD64ThreadContext.RBP)
-                  : context.getRegisterAsAddress(dwarf.getCFARegister())
-                           .addOffsetTo(dwarf.getCFAOffset());
+                  ? getreg.apply(AMD64ThreadContext.RBP)
+                  : getreg.apply(dwarf.getCFARegister())
+                          .addOffsetTo(dwarf.getCFAOffset());
       }
 
       return (cfa == null) ? null
-                           : new LinuxAMD64CFrame(dbg, cfa, rip, dwarf);
+                           : new LinuxAMD64CFrame(dbg, cfa, rsp, rip, dwarf);
    }
 
-   private LinuxAMD64CFrame(LinuxDebugger dbg, Address cfa, Address rip, DwarfParser dwarf) {
-      this(dbg, cfa, rip, dwarf, false);
+   public static LinuxAMD64CFrame getTopFrame(LinuxDebugger dbg, Address rip, ThreadContext context) {
+      return getFrameFromReg(dbg, context::getRegisterAsAddress);
    }
 
-   private LinuxAMD64CFrame(LinuxDebugger dbg, Address cfa, Address rip, DwarfParser dwarf, boolean finalFrame) {
-      this(dbg, cfa, rip, dwarf, finalFrame, false);
+   private LinuxAMD64CFrame(LinuxDebugger dbg, Address cfa, Address rsp, Address rip, DwarfParser dwarf) {
+      this(dbg, cfa, rsp, rip, dwarf, false);
    }
 
-   private LinuxAMD64CFrame(LinuxDebugger dbg, Address cfa, Address rip, DwarfParser dwarf, boolean finalFrame, boolean use1ByteBeforeToLookup) {
+   private LinuxAMD64CFrame(LinuxDebugger dbg, Address cfa, Address rsp, Address rip, DwarfParser dwarf, boolean finalFrame) {
+      this(dbg, cfa, rsp, rip, dwarf, finalFrame, false);
+   }
+
+   private LinuxAMD64CFrame(LinuxDebugger dbg, Address cfa, Address rsp, Address rip, DwarfParser dwarf, boolean finalFrame, boolean use1ByteBeforeToLookup) {
       super(dbg.getCDebugger());
       this.cfa = cfa;
+      this.rsp = rsp;
       this.rip = rip;
       this.dbg = dbg;
       this.dwarf = dwarf;
@@ -87,18 +97,12 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
       return rip;
    }
 
-   public Address localVariableBase() {
-      return cfa;
+   public Address sp() {
+      return rsp;
    }
 
-   private Address getNextPC(boolean useDwarf) {
-     try {
-       long offs = useDwarf ? dwarf.getReturnAddressOffsetFromCFA()
-                            : ADDRESS_SIZE;
-       return cfa.getAddressAt(offs);
-     } catch (UnmappedAddressException | UnalignedAddressException e) {
-       return null;
-     }
+   public Address localVariableBase() {
+      return cfa;
    }
 
    private boolean isValidFrame(Address nextCFA, ThreadContext context) {
@@ -143,10 +147,24 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
        return null;
      }
 
-     ThreadContext context = thread.getContext();
+     var sym = closestSymbolToPC();
+     if (sym != null && sym.getName().equals("<signal handler called>")) {
+       // RSP points signal context
+       //   https://github.com/torvalds/linux/blob/v6.17/arch/x86/kernel/signal.c#L94
+       return getFrameFromReg(dbg, r -> LinuxAMD64ThreadContext.getRegFromSignalTrampoline(sp(), r.intValue()));
+     }
 
-     Address nextPC = getNextPC(dwarf != null);
+     ThreadContext context = thread.getContext();
+     long raOfs = dwarf != null ? dwarf.getReturnAddressOffsetFromCFA()
+                                : ADDRESS_SIZE;
+
+     Address nextPC = cfa.getAddressAt(raOfs);
      if (nextPC == null) {
+       return null;
+     }
+
+     Address nextRSP = cfa.addOffsetTo(raOfs + ADDRESS_SIZE /* exclude return address on stack */);
+     if (nextRSP == null) {
        return null;
      }
 
@@ -164,12 +182,12 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
          // DWARF processing should succeed when the frame is native
          // but it might fail if Common Information Entry (CIE) has language
          // personality routine and/or Language Specific Data Area (LSDA).
-         return new LinuxAMD64CFrame(dbg, null, nextPC, nextDwarf, true);
+         return new LinuxAMD64CFrame(dbg, null, nextRSP, nextPC, nextDwarf, true);
        }
      }
 
      Address nextCFA = getNextCFA(nextDwarf, context);
-     return isValidFrame(nextCFA, context) ? new LinuxAMD64CFrame(dbg, nextCFA, nextPC, nextDwarf, false, fallback)
+     return isValidFrame(nextCFA, context) ? new LinuxAMD64CFrame(dbg, nextCFA, nextRSP, nextPC, nextDwarf, false, fallback)
                                            : null;
    }
 
@@ -193,6 +211,7 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
 
    // package/class internals only
    private static final int ADDRESS_SIZE = 8;
+   private Address rsp;
    private Address rip;
    private Address cfa;
    private LinuxDebugger dbg;
