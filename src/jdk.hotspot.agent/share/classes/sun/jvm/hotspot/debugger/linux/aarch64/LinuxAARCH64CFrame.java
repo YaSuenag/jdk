@@ -30,10 +30,13 @@ import sun.jvm.hotspot.debugger.aarch64.*;
 import sun.jvm.hotspot.debugger.linux.*;
 import sun.jvm.hotspot.debugger.cdbg.*;
 import sun.jvm.hotspot.debugger.cdbg.basic.*;
+import sun.jvm.hotspot.runtime.*;
+import sun.jvm.hotspot.runtime.aarch64.*;
 
 public final class LinuxAARCH64CFrame extends BasicCFrame {
-   public LinuxAARCH64CFrame(LinuxDebugger dbg, Address fp, Address pc) {
+   public LinuxAARCH64CFrame(LinuxDebugger dbg, Address sp, Address fp, Address pc) {
       super(dbg.getCDebugger());
+      this.sp = sp;
       this.fp = fp;
       this.pc = pc;
       this.dbg = dbg;
@@ -73,6 +76,13 @@ public final class LinuxAARCH64CFrame extends BasicCFrame {
         }
       }
 
+      if (nextSP == null) {
+        nextSP = fp.addOffsetTo(2 * ADDRESS_SIZE);
+      }
+      if (nextSP == null) {
+        return null;
+      }
+
       if (nextFP == null) {
         nextFP = fp.getAddressAt(0 * ADDRESS_SIZE);
       }
@@ -86,7 +96,12 @@ public final class LinuxAARCH64CFrame extends BasicCFrame {
       if (nextPC == null) {
         return null;
       }
-      return new LinuxAARCH64CFrame(dbg, nextFP, nextPC);
+      return new LinuxAARCH64CFrame(dbg, nextSP, nextFP, nextPC);
+   }
+
+   @Override
+   public Frame toFrame() {
+     return new AARCH64Frame(sp, fp, pc);
    }
 
    // package/class internals only
