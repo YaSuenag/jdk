@@ -165,6 +165,12 @@ public class PStack extends Tool {
                                }
                             } else {
                                out.println("<" + cb.getName() + ">");
+                               if (cb.getFrameSize() > 0) {
+                                  Frame senderFrame = f.toFrame().sender(jthread.newRegisterMap(true));
+                                  senderSP = senderFrame.getSP();
+                                  senderFP = senderFrame.getFP();
+                                  senderPC = senderFrame.getPC();
+                               }
                             }
                          } else {
                             printUnknown(out);
