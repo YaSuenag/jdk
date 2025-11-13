@@ -29,6 +29,8 @@ import sun.jvm.hotspot.debugger.amd64.*;
 import sun.jvm.hotspot.debugger.cdbg.*;
 import sun.jvm.hotspot.debugger.cdbg.basic.*;
 import sun.jvm.hotspot.debugger.windbg.*;
+import sun.jvm.hotspot.runtime.*;
+import sun.jvm.hotspot.runtime.amd64.*;
 
 public class WindowsAMD64CFrame extends BasicCFrame {
   private Address rsp;
@@ -64,6 +66,11 @@ public class WindowsAMD64CFrame extends BasicCFrame {
 
   public Address localVariableBase() {
     return dbg.getFrameBase(rsp, pc);
+  }
+
+  @Override
+  public Frame toFrame() {
+    return new AMD64Frame(rsp, localVariableBase(), pc);
   }
 
   private WindbgDebugger dbg;
