@@ -30,6 +30,7 @@ import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.debugger.cdbg.*;
 import sun.jvm.hotspot.debugger.amd64.*;
 import sun.jvm.hotspot.debugger.windows.amd64.*;
+import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.utilities.AddressOps;
 
 class WindbgCDebugger implements CDebugger {
@@ -73,7 +74,18 @@ class WindbgCDebugger implements CDebugger {
       if (rsp == null) return null;
       Address pc  = context.getRegisterAsAddress(AMD64ThreadContext.RIP);
       if (pc == null) return null;
-      return new WindowsAMD64CFrame(dbg, rsp, pc);
+
+      JavaThread ownerThread = null;
+      Threads threads = VM.getVM().getThreads();
+      for (int i = 0; i < threads.getNumberOfThreads(); i++) {
+        var jthread = threads.getJavaThreadAt(i);
+        if (thread.equals(jthread.getThreadProxy())) {
+          ownerThread = jthread;
+          break;
+        }
+      }
+
+      return new WindowsAMD64CFrame(dbg, ownerThread, rsp, pc);
     } else {
       // unsupported CPU!
       return null;

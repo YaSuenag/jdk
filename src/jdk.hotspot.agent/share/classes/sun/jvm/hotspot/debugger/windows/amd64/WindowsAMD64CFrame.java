@@ -33,31 +33,45 @@ import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.runtime.amd64.*;
 
 public class WindowsAMD64CFrame extends BasicCFrame {
+  private JavaThread ownerThread;
   private Address rsp;
   private Address pc;
 
   private static final int ADDRESS_SIZE = 8;
 
   /** Constructor for topmost frame */
-  public WindowsAMD64CFrame(WindbgDebugger dbg, Address rsp, Address pc) {
+  public WindowsAMD64CFrame(WindbgDebugger dbg, JavaThread ownerThread, Address rsp, Address pc) {
     super(dbg.getCDebugger());
+    this.ownerThread = ownerThread;
     this.rsp = rsp;
     this.pc  = pc;
     this.dbg = dbg;
   }
 
+  @Override
   public CFrame sender(ThreadProxy thread) {
-    WindbgDebugger.SenderRegs senderRegs = dbg.getSenderRegs(rsp, pc);
-    if (senderRegs == null) {
-      return null;
+    return sender(thread, null, null, null);
+  }
+
+  @Override
+  public CFrame sender(ThreadProxy th, Address nextSP, Address nextFP, Address nextPC) {
+    if (nextSP == null && nextPC == null) {
+      WindbgDebugger.SenderRegs senderRegs = dbg.getSenderRegs(rsp, pc);
+      if (senderRegs == null) {
+        return null;
+      }
+
+      if (senderRegs.nextSP() == null || senderRegs.nextSP().lessThanOrEqual(rsp)) {
+        return null;
+      }
+      nextSP = senderRegs.nextSP();
+
+      if (senderRegs.nextPC() == null) {
+        return null;
+      }
+      nextPC = senderRegs.nextPC();
     }
-    if (senderRegs.nextSP() == null || senderRegs.nextSP().lessThanOrEqual(rsp)) {
-      return null;
-    }
-    if (senderRegs.nextPC() == null) {
-      return null;
-    }
-    return new WindowsAMD64CFrame(dbg, senderRegs.nextSP(), senderRegs.nextPC());
+    return new WindowsAMD64CFrame(dbg, ownerThread, nextSP, nextPC);
   }
 
   public Address pc() {
@@ -70,7 +84,18 @@ public class WindowsAMD64CFrame extends BasicCFrame {
 
   @Override
   public Frame toFrame() {
-    return new AMD64Frame(rsp, localVariableBase(), pc);
+    Address bp = localVariableBase();
+
+    // Find frame pointer from JavaVFrame because PF cannot be get from
+    // GetStackTrace DbgHelp API on Windows.
+    for (JavaVFrame vf = ownerThread.getLastJavaVFrameDbg(); vf != null; vf = vf.javaSender()) {
+      Frame f = vf.getFrame();
+      if (f.getSP().equals(rsp) && f.getPC().equals(pc)) {
+        bp = f.getFP();
+      }
+    }
+
+    return new AMD64Frame(rsp, bp, pc);
   }
 
   private WindbgDebugger dbg;
