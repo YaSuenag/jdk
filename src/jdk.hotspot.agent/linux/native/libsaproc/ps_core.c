@@ -31,6 +31,8 @@
 #include <elf.h>
 #include <link.h>
 #include <errno.h>
+#include <sys/mman.h>
+#include <sys/sendfile.h>
 #include "libproc_impl.h"
 #include "ps_core_common.h"
 #include "proc_service.h"
@@ -284,7 +286,8 @@ static bool core_handle_note(struct ps_prochandle* ph, ELF_PHDR* note_phdr) {
             // Set entry point address to address of dynamic section.
             // We will adjust it in read_exec_segments().
             ph->core->dynamic_addr = auxv->a_un.a_val;
-            break;
+          } else if (auxv->a_type == AT_SYSINFO_EHDR) {
+            ph->core->vdso_addr = auxv->a_un.a_val;
           }
           auxv++;
         }
@@ -350,6 +353,10 @@ static bool read_core_segments(struct ps_prochandle* ph, ELF_EHDR* core_ehdr) {
                   print_error("failed to add map info\n");
                   goto err;
                }
+               if (core_php->p_vaddr == ph->core->vdso_addr) {
+                  ph->core->vdso_offset = core_php->p_offset;
+                  ph->core->vdso_size = core_php->p_memsz;
+               }
             }
             break;
          }
@@ -393,6 +400,12 @@ static bool read_lib_segments(struct ps_prochandle* ph, int lib_fd, ELF_EHDR* li
           print_error("failed to add map info\n");
           goto err;
         }
+      } else if (target_vaddr == ph->core->vdso_addr) {
+        print_debug("overwrote vDSO mapping (address = 0x%lx, size = %ld)\n", target_vaddr, ph->core->vdso_size);
+        existing_map->fd = lib_fd;
+        existing_map->offset = lib_php->p_offset;
+        existing_map->memsz = ph->core->vdso_size;
+        break; // can be exit because vDSO can be treated as 1 segment.
       } else if (lib_php->p_flags != existing_map->flags) {
         // Access flags for this memory region are different between the library
         // and coredump. It might be caused by mprotect() call at runtime.
@@ -687,9 +700,19 @@ static bool read_shared_lib_info(struct ps_prochandle* ph) {
          // it will fail later.
       }
 
-      if (lib_name[0] != '\0') {
-         // ignore empty lib names
-         lib_fd = pathmap_open(lib_name);
+      if (lib_name[0] != '\0') { // ignore empty lib names
+         if (strcmp("linux-vdso.so.1", lib_name) == 0 ||
+             strcmp("linux-vdso64.so.1", lib_name) == 0) {
+            lib_fd = memfd_create("[vdso] in core", 0);
+            off64_t ofs = ph->core->vdso_offset;
+            if (sendfile64(lib_fd, ph->core->core_fd, &ofs, ph->core->vdso_size) == -1) {
+               print_debug("can't copy vDSO (%d)\n", errno);
+               close(lib_fd);
+               lib_fd = -1;
+            }
+         } else {
+            lib_fd = pathmap_open(lib_name);
+         }
 
          if (lib_fd < 0) {
             print_debug("can't open shared object %s\n", lib_name);

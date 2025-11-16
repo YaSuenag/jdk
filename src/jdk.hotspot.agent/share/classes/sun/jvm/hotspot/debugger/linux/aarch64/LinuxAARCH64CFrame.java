@@ -64,6 +64,14 @@ public final class LinuxAARCH64CFrame extends BasicCFrame {
 
    @Override
    public CFrame sender(ThreadProxy thread, Address nextSP, Address nextFP, Address nextPC) {
+      var sym = closestSymbolToPC();
+      if (sym != null && sym.getName().equals("<signal handler called>")) {
+        nextSP = LinuxAARCH64ThreadContext.getRegFromSignalTrampoline(sp, AARCH64ThreadContext.SP);
+        nextFP = LinuxAARCH64ThreadContext.getRegFromSignalTrampoline(sp, AARCH64ThreadContext.FP);
+        nextPC = LinuxAARCH64ThreadContext.getRegFromSignalTrampoline(sp, AARCH64ThreadContext.PC);
+        return new LinuxAARCH64CFrame(dbg, nextSP, nextFP, nextPC);
+      }
+
       // Check fp
       // Skip if both nextFP and nextPC are given - do not need to load from fp.
       if (nextFP == null && nextPC == null) {
@@ -95,15 +103,26 @@ public final class LinuxAARCH64CFrame extends BasicCFrame {
         CodeCache cc = VM.getVM().getCodeCache();
         CodeBlob currentBlob = cc.findBlobUnsafe(pc());
 
-        // This case is different from HotSpot. See JDK-8371194 for details.
-        if (currentBlob != null && (currentBlob.isContinuationStub() || currentBlob.isNativeMethod())) {
+        if (currentBlob == null) {
+          // CFrame
+          nextSP = fp.addOffsetTo(2 * ADDRESS_SIZE);
+	} else if (currentBlob.isContinuationStub() || currentBlob.isNativeMethod()) {
+          // This case is different from HotSpot. See JDK-8371194 for details.
           // Use FP since it should always be valid for these cases.
           // TODO: These should be walked as Frames not CFrames.
           nextSP = fp.addOffsetTo(2 * ADDRESS_SIZE);
         } else {
           CodeBlob codeBlob = cc.findBlobUnsafe(nextPC);
-          boolean useCodeBlob = codeBlob != null && codeBlob.getFrameSize() > 0;
-          nextSP = useCodeBlob ? nextFP.addOffsetTo((2 * ADDRESS_SIZE) - codeBlob.getFrameSize()) : nextFP;
+          if (codeBlob == null) {
+            // CFrame
+            nextSP = fp.addOffsetTo(2 * ADDRESS_SIZE);
+          } else if (codeBlob.getFrameSize() > 0) {
+            // Use frame size
+            nextSP = nextFP.addOffsetTo((2 * ADDRESS_SIZE) - codeBlob.getFrameSize());
+          } else {
+            // Use nextFP because frame size of the code blob is zero.
+            nextSP = nextFP;
+          }
         }
       }
       if (nextSP == null) {

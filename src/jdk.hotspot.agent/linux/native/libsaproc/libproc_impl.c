@@ -286,7 +286,8 @@ lib_info* add_lib_info_fd(struct ps_prochandle* ph, const char* libname, int fd,
    }
 
    if (fill_addr_info(newlib)) {
-     if (!read_eh_frame(ph, newlib)) {
+     // vDSO might not have .eh_frame
+     if (newlib->base != ph->core->vdso_addr && !read_eh_frame(ph, newlib)) {
        print_debug("Could not find .eh_frame section in %s\n", newlib->name);
      }
    } else {

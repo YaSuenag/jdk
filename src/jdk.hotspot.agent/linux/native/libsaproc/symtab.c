@@ -417,10 +417,12 @@ static struct symtab* build_symtab_internal(int fd, const char *filename, bool t
         uintptr_t sym_value;
         char *sym_name = symtab->strs + syms->st_name;
 
-        // skip non-object and non-function symbols
+        // skip non-object and non-function symbols, but STT_NOTYPE is allowed for
+        // signal trampoline.
         int st_type = ELF_ST_TYPE(syms->st_info);
-        if ( st_type != STT_FUNC && st_type != STT_OBJECT)
+        if (st_type != STT_FUNC && st_type != STT_OBJECT && st_type != STT_NOTYPE) {
            continue;
+        }
         // skip empty strings and undefined symbols
         if (*sym_name == '\0' || syms->st_shndx == SHN_UNDEF) continue;
 
@@ -561,8 +563,12 @@ const char* nearest_symbol(struct symtab* symtab, uintptr_t offset,
        // See:
        //   - sysdeps/unix/sysv/linux/x86_64/libc_sigaction.c in glibc
        //   - gdb/amd64-linux-tdep.c in GDB
+       //   - gdb/i386-linux-tdep.c
        // Size of signal trampoline might be zero.
-       if (strcmp("__restore_rt", sym->name) == 0 && offset == sym->offset) {
+       if ((strcmp("__restore_rt", sym->name) == 0 ||
+           strcmp("__kernel_sigreturn", sym->name) == 0 ||
+           strcmp("__kernel_rt_sigreturn", sym->name) == 0)
+          && offset == sym->offset) {
          if (poffset) *poffset = 0;
          static const char *sighandler_desc = "<signal handler called>";
          return sighandler_desc;
