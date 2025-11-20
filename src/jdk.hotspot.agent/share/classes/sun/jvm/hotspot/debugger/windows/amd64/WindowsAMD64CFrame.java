@@ -86,8 +86,8 @@ public class WindowsAMD64CFrame extends BasicCFrame {
   public Frame toFrame() {
     Address bp = localVariableBase();
 
-    // Find frame pointer from JavaVFrame because PF cannot be get from
-    // GetStackTrace DbgHelp API on Windows.
+    // Find bottom of frame pointer from JavaVFrame because PF cannot be get
+    // from GetStackTrace DbgHelp API on Windows.
     for (JavaVFrame vf = ownerThread.getLastJavaVFrameDbg(); vf != null; vf = vf.javaSender()) {
       Frame f = vf.getFrame();
       if (f.getSP().equals(rsp) && f.getPC().equals(pc)) {

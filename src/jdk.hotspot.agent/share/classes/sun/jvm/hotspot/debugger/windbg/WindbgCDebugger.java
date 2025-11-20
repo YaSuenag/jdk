@@ -26,6 +26,7 @@ package sun.jvm.hotspot.debugger.windbg;
 
 import java.io.*;
 import java.util.*;
+import java.util.stream.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.debugger.cdbg.*;
 import sun.jvm.hotspot.debugger.amd64.*;
@@ -75,15 +76,12 @@ class WindbgCDebugger implements CDebugger {
       Address pc  = context.getRegisterAsAddress(AMD64ThreadContext.RIP);
       if (pc == null) return null;
 
-      JavaThread ownerThread = null;
       Threads threads = VM.getVM().getThreads();
-      for (int i = 0; i < threads.getNumberOfThreads(); i++) {
-        var jthread = threads.getJavaThreadAt(i);
-        if (thread.equals(jthread.getThreadProxy())) {
-          ownerThread = jthread;
-          break;
-        }
-      }
+      JavaThread ownerThread = IntStream.range(0, threads.getNumberOfThreads())
+                                        .mapToObj(threads::getJavaThreadAt)
+                                        .filter(jt -> thread.equals(jt.getThreadProxy()))
+                                        .findFirst()
+                                        .orElse(null);
 
       return new WindowsAMD64CFrame(dbg, ownerThread, rsp, pc);
     } else {
