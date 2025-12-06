@@ -506,12 +506,57 @@ void JfrRecorderService::vm_error_rotation() {
   }
 }
 
-void JfrRecorderService::rotate(int msgs) {
+static void post_events(bool emit_old_object_samples, bool emit_event_shutdown) {
+  if (emit_old_object_samples) {
+    LeakProfiler::emit_events(max_jlong, false, false);
+  }
+  if (emit_event_shutdown) {
+    EventShutdown e;
+    e.set_reason("VM Error");
+    e.commit();
+  }
+  EventDumpReason event;
+  event.set_reason(emit_old_object_samples ? "Out of Memory" : "Crash");
+  event.set_recordingId(-1);
+  event.commit();
+}
+
+class JavaThreadInNative : public StackObj {
+  private:
+    JavaThread *_jt;
+    JavaThreadState _original_state;
+  public:
+    JavaThreadInNative(Thread *t) : _jt(nullptr),
+                                    _original_state(_thread_max_state) {
+      if (t != nullptr && t->is_Java_thread()) {
+        _jt = JavaThread::cast(t);
+        _original_state = _jt->thread_state();
+        if (_original_state != _thread_in_native) {
+          _jt->set_thread_state(_thread_in_native);
+        }
+      }
+    }
+
+    ~JavaThreadInNative() {
+      if (_original_state != _thread_max_state) {
+        _jt->set_thread_state(_original_state);
+      }
+    }
+};
+
+void JfrRecorderService::rotate(int msgs, bool emit_old_object_samples, bool emit_event_shutdown) {
   JfrRotationLock lock;
   if (lock.is_acquired_recursively()) {
     return;
   }
   if (msgs & MSGBIT(MSG_VM_ERROR)) {
+    // Emit events for VM error before rotation.
+    post_events(emit_old_object_samples, emit_event_shutdown);
+
+    // Ensure the thread state is _thread_in_native in stop() call
+    // if the thread is JavaThread.
+    Thread* const thread = Thread::current_or_null_safe();
+    JavaThreadInNative jtn(thread);
     stop();
     vm_error_rotation();
     set_recorder_state(STOPPED, STOPPED_WITH_ERROR);

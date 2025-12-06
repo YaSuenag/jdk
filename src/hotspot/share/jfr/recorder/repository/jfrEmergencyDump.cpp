@@ -556,21 +556,6 @@ class JavaThreadInVMAndNative : public StackObj {
   }
 };
 
-static void post_events(bool emit_old_object_samples, bool emit_event_shutdown, Thread* thread) {
-  if (emit_old_object_samples) {
-    LeakProfiler::emit_events(max_jlong, false, false);
-  }
-  if (emit_event_shutdown) {
-    EventShutdown e;
-    e.set_reason("VM Error");
-    e.commit();
-  }
-  EventDumpReason event;
-  event.set_reason(emit_old_object_samples ? "Out of Memory" : "Crash");
-  event.set_recordingId(-1);
-  event.commit();
-}
-
 static volatile traceid _jfr_shutdown_tid = 0;
 
 static bool guard_reentrancy() {
@@ -613,12 +598,8 @@ void JfrEmergencyDump::on_vm_shutdown(bool emit_old_object_samples, bool emit_ev
   // Ensure a JavaThread is _thread_in_vm when we make this call
   JavaThreadInVMAndNative jtivm(thread);
   release_locks(thread);
-  post_events(emit_old_object_samples, emit_event_shutdown, thread);
 
-  // if JavaThread, transition to _thread_in_native to issue a final flushpoint
-  NoHandleMark nhm;
-  jtivm.transition_to_native();
   const int messages = MSGBIT(MSG_VM_ERROR);
   JfrRecorderService service;
-  service.rotate(messages);
+  service.rotate(messages, emit_old_object_samples, emit_event_shutdown);
 }
