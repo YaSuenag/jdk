@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2020, NTT DATA.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, NTT DATA.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,5 +70,6 @@ public class DwarfParser {
   public native int getCFAOffset();
   public native int getReturnAddressOffsetFromCFA();
   public native int getBasePointerOffsetFromCFA();
+  public native boolean instructionExists();
   public native boolean isBPOffsetAvailable();
 }

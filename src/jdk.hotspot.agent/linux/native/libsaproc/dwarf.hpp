@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2020, NTT DATA.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, NTT DATA.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,6 +69,7 @@ class DwarfParser {
     unsigned int _code_factor;
     int _data_factor;
 
+    bool _instruction_exists;
     uintptr_t _current_pc;
     int _cfa_offset;
     int _ra_cfa_offset;
@@ -90,6 +91,7 @@ class DwarfParser {
                                  _return_address_reg(RA),
                                  _code_factor(0),
                                  _data_factor(0),
+                                 _instruction_exists(false),
                                  _current_pc(0L),
                                  _cfa_offset(0),
                                  _ra_cfa_offset(0),
@@ -99,6 +101,7 @@ class DwarfParser {
     ~DwarfParser() {}
     bool process_dwarf(const uintptr_t pc);
     enum DWARF_Register get_cfa_register() { return _cfa_reg; }
+    bool instruction_exists() { return _instruction_exists; }
     int get_cfa_offset() { return _cfa_offset; }
     int get_ra_cfa_offset() { return _ra_cfa_offset; }
     int get_bp_cfa_offset() { return _bp_cfa_offset; }

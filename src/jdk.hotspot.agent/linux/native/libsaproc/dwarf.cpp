@@ -114,6 +114,7 @@ bool DwarfParser::process_cie(unsigned char *start_of_entry, uint32_t id) {
 
 void DwarfParser::parse_dwarf_instructions(uintptr_t begin, uintptr_t pc, const unsigned char *end) {
   uintptr_t operand1;
+  _instruction_exists = false;
   _current_pc = begin;
 
   /* for remember state */
@@ -129,9 +130,13 @@ void DwarfParser::parse_dwarf_instructions(uintptr_t begin, uintptr_t pc, const 
       op &= 0xc0;
     }
 
+    if (op == 0x0) {  // DW_CFA_nop
+      return;
+    }
+
+    _instruction_exists = true;
+
     switch (op) {
-      case 0x0:  // DW_CFA_nop
-        return;
       case 0x01: // DW_CFA_set_loc
         operand1 = get_decoded_value();
         if (_current_pc != 0L) {

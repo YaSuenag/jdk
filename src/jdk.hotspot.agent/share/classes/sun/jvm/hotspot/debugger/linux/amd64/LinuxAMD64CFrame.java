@@ -55,8 +55,10 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
           return new LinuxAMD64CFrame(dbg, rsp, cfa, rip, dwarf, true);
         }
 
-        cfa = getreg.apply(dwarf.getCFARegister())
-                    .addOffsetTo(dwarf.getCFAOffset());
+        if (dwarf.instructionExists()) {
+          cfa = getreg.apply(dwarf.getCFARegister())
+                      .addOffsetTo(dwarf.getCFAOffset());
+        }
       }
 
       return (cfa == null) ? null
@@ -83,8 +85,10 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
           return new LinuxAMD64CFrame(dbg, rsp, cfa, rip, dwarf, true);
         }
 
-        cfa = context.getRegisterAsAddress(dwarf.getCFARegister())
-                     .addOffsetTo(dwarf.getCFAOffset());
+        if (dwarf.instructionExists()) {
+          cfa = context.getRegisterAsAddress(dwarf.getCFARegister())
+                       .addOffsetTo(dwarf.getCFAOffset());
+        }
       }
 
       return (cfa == null) ? null
@@ -127,8 +131,8 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
 
    private Address getNextPC(boolean useDwarf) {
      try {
-       long offs = useDwarf ? dwarf.getReturnAddressOffsetFromCFA()
-                            : ADDRESS_SIZE;
+       long offs = useDwarf && dwarf.instructionExists() ? dwarf.getReturnAddressOffsetFromCFA()
+                                                         : ADDRESS_SIZE;
        return cfa.getAddressAt(offs);
      } catch (UnmappedAddressException | UnalignedAddressException e) {
        return null;
@@ -146,10 +150,21 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
    }
 
    private Address getNextRSP() {
-     // next RSP should be previous slot of return address.
-     var bp = dwarf == null ? cfa.addOffsetTo(ADDRESS_SIZE) // top of BP points callser BP
-                            : cfa.addOffsetTo(dwarf.getReturnAddressOffsetFromCFA());
-     return bp.addOffsetTo(ADDRESS_SIZE);
+     Address nextRSP;
+
+     if (dwarf == null) {
+       nextRSP = cfa.addOffsetTo(ADDRESS_SIZE)  // top of BP points caller BP
+                    .addOffsetTo(ADDRESS_SIZE);
+     } else if (dwarf.instructionExists()) {
+       // next RSP should be previous slot of return address.
+       nextRSP = cfa.addOffsetTo(dwarf.getReturnAddressOffsetFromCFA())
+                    .addOffsetTo(ADDRESS_SIZE);
+     } else {
+       // We can use current RSP for sender frame if we do not find any DWARF instructions.
+       nextRSP = rsp;
+     }
+
+     return nextRSP;
    }
 
    private Address getNextCFA(DwarfParser nextDwarf, ThreadContext context, Address senderFP, Address senderPC) {
@@ -162,8 +177,16 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
      }
 
      if (VM.getVM().getCodeCache().contains(senderPC)) { // Next frame is Java
-       nextCFA = (dwarf == null) ? senderFP // Current frame is Java
-                                 : cfa.getAddressAt(dwarf.getBasePointerOffsetFromCFA()); // Current frame is Native
+       if (dwarf == null) {
+         // Current frame is Java
+         nextCFA = senderFP;
+       } else if (dwarf.instructionExists()) {
+         // Current frame is Native
+         nextCFA = cfa.getAddressAt(dwarf.getBasePointerOffsetFromCFA());
+       } else {
+         // We can use current RBP (cfa) for sender frame if we do not find any DWARF instructions.
+         nextCFA = cfa;
+       }
      } else { // Next frame is Native
        if (VM.getVM().getCodeCache().contains(pc())) { // Current frame is Java
          nextCFA = senderFP.addOffsetTo(-nextDwarf.getBasePointerOffsetFromCFA());
