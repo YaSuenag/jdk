@@ -75,6 +75,8 @@ public class DwarfParser {
 
   public native int getCFARegister();
   public native int getCFAOffset();
+  public native int getOffsetFromCFA(int sareg);
+  public native int getRARegister();
   public native int getReturnAddressOffsetFromCFA();
   public native int getBasePointerOffsetFromCFA();
 }

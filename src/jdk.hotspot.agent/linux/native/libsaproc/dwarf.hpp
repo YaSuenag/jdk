@@ -32,6 +32,8 @@
 
 #ifdef __x86_64__
 #include "dwarf_regs_amd64.h"
+#elif defined(__aarch64__)
+#include "dwarf_regs_aarch64.h"
 #endif
 
 enum DWARF_Register {
@@ -82,6 +84,7 @@ class DwarfParser {
     bool process_dwarf(const uintptr_t pc);
     enum DWARF_Register get_cfa_register() { return _state.cfa_reg; }
     int get_cfa_offset() { return _state.cfa_offset; }
+    enum DWARF_Register get_ra_register() { return _state.return_address_reg; }
     int get_offset_from_cfa(enum DWARF_Register reg) { return _state.offset_from_cfa[reg]; }
 
     bool is_in(long pc) {

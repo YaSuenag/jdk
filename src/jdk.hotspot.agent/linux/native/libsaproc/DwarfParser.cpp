@@ -175,6 +175,50 @@ JNIEXPORT jint JNICALL Java_sun_jvm_hotspot_debugger_linux_DwarfParser_getCFAOff
 
 /*
  * Class:     sun_jvm_hotspot_debugger_linux_DwarfParser
+ * Method:    getOffsetFromCFA
+ * Signature: (I)I
+ */
+extern "C"
+JNIEXPORT jint JNICALL Java_sun_jvm_hotspot_debugger_linux_DwarfParser_getOffsetFromCFA
+  (JNIEnv *env, jobject this_obj, jint sareg) {
+  DwarfParser *parser = reinterpret_cast<DwarfParser *>(get_dwarf_context(env, this_obj));
+
+#define DWARF_REG(reg, dwreg) \
+    if (sareg == sa_##reg) { \
+      return parser->get_offset_from_cfa(static_cast<enum DWARF_Register>(dwreg)); \
+    } else
+
+  DWARF_REGLIST
+
+#undef DWARF_REG
+
+  return INT_MAX;
+}
+
+/*
+ * Class:     sun_jvm_hotspot_debugger_linux_DwarfParser
+ * Method:    getRARegister
+ * Signature: ()I
+ */
+extern "C"
+JNIEXPORT jint JNICALL Java_sun_jvm_hotspot_debugger_linux_DwarfParser_getRARegister
+  (JNIEnv *env, jobject this_obj) {
+  DwarfParser *parser = reinterpret_cast<DwarfParser *>(get_dwarf_context(env, this_obj));
+
+  switch (parser->get_ra_register()) {
+#define DWARF_REG(reg, _) \
+    case reg: return sa_##reg;
+
+  DWARF_REGLIST
+
+#undef DWARF_REG
+
+    default:  return -1;
+  }
+}
+
+/*
+ * Class:     sun_jvm_hotspot_debugger_linux_DwarfParser
  * Method:    getReturnAddressOffsetFromCFA
  * Signature: ()I
  */

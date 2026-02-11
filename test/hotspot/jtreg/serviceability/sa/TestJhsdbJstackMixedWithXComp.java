@@ -37,7 +37,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @bug 8370176
  * @requires vm.hasSA
  * @requires os.family == "linux"
- * @requires os.arch == "amd64"
+ * @requires (os.arch == "amd64") | (os.arch == "aarch64")
  * @library /test/lib
  * @run driver TestJhsdbJstackMixedWithXComp
  */
@@ -47,7 +47,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @bug 8370176
  * @requires vm.hasSA
  * @requires os.family == "linux"
- * @requires os.arch == "amd64"
+ * @requires (os.arch == "amd64") | (os.arch == "aarch64")
  * @library /test/lib
  * @run driver TestJhsdbJstackMixedWithXComp -XX:+PreserveFramePointer
  */
@@ -57,7 +57,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  * @bug 8370176
  * @requires vm.hasSA
  * @requires os.family == "linux"
- * @requires os.arch == "amd64"
+ * @requires (os.arch == "amd64") | (os.arch == "aarch64")
  * @library /test/lib
  * @run driver TestJhsdbJstackMixedWithXComp -XX:-TieredCompilation
  */
