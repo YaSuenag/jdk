@@ -23,7 +23,7 @@
  *
  */
 
-package sun.jvm.hotspot.debugger.linux.amd64;
+package sun.jvm.hotspot.debugger.linux;
 
 import java.lang.ref.Cleaner;
 import sun.jvm.hotspot.debugger.Address;

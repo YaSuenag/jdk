@@ -26,32 +26,22 @@
 #ifndef _DWARF_HPP_
 #define _DWARF_HPP_
 
+#include <map>
+
 #include "libproc_impl.h"
 
-/*
- * from System V Application Binary Interface
- *        AMD64 Architecture Processor Supplement
- *          Figure 3.38: DWARF Register Number Mapping
- * https://software.intel.com/sites/default/files/article/402129/mpx-linux64-abi.pdf
- */
+#ifdef __x86_64__
+#include "dwarf_regs_amd64.h"
+#endif
+
 enum DWARF_Register {
-  RAX,
-  RDX,
-  RCX,
-  RBX,
-  RSI,
-  RDI,
-  RBP,
-  RSP,
-  R8,
-  R9,
-  R10,
-  R11,
-  R12,
-  R13,
-  R14,
-  R15,
-  RA,
+#define DWARF_REG(reg, no) \
+  reg = no,
+
+  DWARF_REGLIST
+  DWARF_PSEUDO_REGLIST
+
+#undef DWARF_REG
   MAX_VALUE
 };
 
@@ -71,9 +61,9 @@ class DwarfParser {
 
     uintptr_t _current_pc;
     int _cfa_offset;
-    int _ra_cfa_offset;
-    int _bp_cfa_offset;
+    std::map<enum DWARF_Register, int> _offset_from_cfa;
 
+    void init_offset_map(std::map<enum DWARF_Register, int>& offset_map);
     uintptr_t read_leb(bool sign);
     uint64_t get_entry_length();
     bool process_cie(unsigned char *start_of_entry, uint32_t id);
@@ -82,24 +72,12 @@ class DwarfParser {
     unsigned int get_pc_range();
 
   public:
-    DwarfParser(lib_info *lib) : _lib(lib),
-                                 _buf(NULL),
-                                 _encoding(0),
-                                 _cfa_reg(MAX_VALUE),
-                                 _return_address_reg(RA),
-                                 _code_factor(0),
-                                 _data_factor(0),
-                                 _current_pc(0L),
-                                 _cfa_offset(0),
-                                 _ra_cfa_offset(8),
-                                 _bp_cfa_offset(INT_MAX) {};
-
+    DwarfParser(lib_info *lib);
     ~DwarfParser() {}
     bool process_dwarf(const uintptr_t pc);
     enum DWARF_Register get_cfa_register() { return _cfa_reg; }
     int get_cfa_offset() { return _cfa_offset; }
-    int get_ra_cfa_offset() { return _ra_cfa_offset; }
-    int get_bp_cfa_offset() { return _bp_cfa_offset; }
+    int get_offset_from_cfa(enum DWARF_Register reg) { return _offset_from_cfa[reg]; }
 
     bool is_in(long pc) {
       return (_lib->exec_start <= pc) && (pc < _lib->exec_end);
