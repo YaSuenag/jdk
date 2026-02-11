@@ -63,10 +63,10 @@ public final class LinuxAARCH64CFrame extends BasicCFrame {
    }
 
    @Override
-   public CFrame sender(ThreadProxy thread, Address nextSP, Address nextFP, Address nextPC) {
+   public CFrame sender(ThreadProxy thread, Address senderSP, Address senderFP, Address senderPC) {
       // Check fp
-      // Skip if both nextFP and nextPC are given - do not need to load from fp.
-      if (nextFP == null && nextPC == null) {
+      // Skip if both senderFP and senderPC are given - do not need to load from fp.
+      if (senderFP == null && senderPC == null) {
         if (fp == null) {
           return null;
         }
@@ -77,21 +77,21 @@ public final class LinuxAARCH64CFrame extends BasicCFrame {
         }
       }
 
-      if (nextFP == null) {
-        nextFP = fp.getAddressAt(0 * ADDRESS_SIZE);
+      if (senderFP == null) {
+        senderFP = fp.getAddressAt(0 * ADDRESS_SIZE);
       }
-      if (nextFP == null) {
+      if (senderFP == null) {
         return null;
       }
 
-      if (nextPC == null) {
-        nextPC  = fp.getAddressAt(1 * ADDRESS_SIZE);
+      if (senderPC == null) {
+        senderPC  = fp.getAddressAt(1 * ADDRESS_SIZE);
       }
-      if (nextPC == null) {
+      if (senderPC == null) {
         return null;
       }
 
-      if (nextSP == null) {
+      if (senderSP == null) {
         CodeCache cc = VM.getVM().getCodeCache();
         CodeBlob currentBlob = cc.findBlobUnsafe(pc());
 
@@ -99,18 +99,18 @@ public final class LinuxAARCH64CFrame extends BasicCFrame {
         if (currentBlob != null && (currentBlob.isContinuationStub() || currentBlob.isNativeMethod())) {
           // Use FP since it should always be valid for these cases.
           // TODO: These should be walked as Frames not CFrames.
-          nextSP = fp.addOffsetTo(2 * ADDRESS_SIZE);
+          senderSP = fp.addOffsetTo(2 * ADDRESS_SIZE);
         } else {
-          CodeBlob codeBlob = cc.findBlobUnsafe(nextPC);
+          CodeBlob codeBlob = cc.findBlobUnsafe(senderPC);
           boolean useCodeBlob = codeBlob != null && codeBlob.getFrameSize() > 0;
-          nextSP = useCodeBlob ? nextFP.addOffsetTo((2 * ADDRESS_SIZE) - codeBlob.getFrameSize()) : nextFP;
+          senderSP = useCodeBlob ? senderFP.addOffsetTo((2 * ADDRESS_SIZE) - codeBlob.getFrameSize()) : senderFP;
         }
       }
-      if (nextSP == null) {
+      if (senderSP == null) {
         return null;
       }
 
-      return new LinuxAARCH64CFrame(dbg, nextSP, nextFP, nextPC);
+      return new LinuxAARCH64CFrame(dbg, senderSP, senderFP, senderPC);
    }
 
    @Override

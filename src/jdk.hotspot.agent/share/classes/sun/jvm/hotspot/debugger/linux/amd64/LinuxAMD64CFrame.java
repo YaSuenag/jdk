@@ -106,7 +106,7 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
         : rbp;
    }
 
-   private Address getNextPC() {
+   private Address getSenderPC() {
      try {
        return dwarf == null
          ? rbp.getAddressAt(ADDRESS_SIZE) // Java frame
@@ -116,21 +116,21 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
      }
    }
 
-   private boolean isValidFrame(Address nextCFA, Address nextRBP) {
+   private boolean isValidFrame(Address senderCFA, Address senderRBP) {
      // Both CFA and RBP must not be null.
-     if (nextCFA == null && nextRBP == null) {
+     if (senderCFA == null && senderRBP == null) {
        return false;
      }
 
      // RBP must not be null if CFA is null - it happens between Java frame and Native frame.
      // We cannot validate RBP value because it might be used as GPR. Thus returns true
      // if RBP is not null.
-     if (nextCFA == null && nextRBP != null) {
+     if (senderCFA == null && senderRBP != null) {
        return true;
      }
 
-     // nextCFA must be greater than current CFA.
-     if (nextCFA != null && nextCFA.greaterThanOrEqual(cfa)) {
+     // senderCFA must be greater than current CFA.
+     if (senderCFA != null && senderCFA.greaterThanOrEqual(cfa)) {
        return true;
      }
 
@@ -138,13 +138,13 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
      return false;
    }
 
-   private Address getNextRSP() {
+   private Address getSenderRSP() {
      return dwarf == null ? rbp.addOffsetTo(2 * ADDRESS_SIZE) // Java frame - skip saved BP and RA
                           : cfa.addOffsetTo(dwarf.getReturnAddressOffsetFromCFA())
                                .addOffsetTo(ADDRESS_SIZE); // Native frame
    }
 
-   private Address getNextRBP(Address senderFP) {
+   private Address getSenderRBP(Address senderFP) {
      if (senderFP != null) {
        return senderFP;
      } else if (dwarf == null) { // Current frame is Java
@@ -156,18 +156,18 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
      }
    }
 
-   private Address getNextCFA(DwarfParser nextDwarf, Address senderFP, Address senderPC) {
-     if (nextDwarf == null) { // Next frame is Java
+   private Address getSenderCFA(DwarfParser senderDwarf, Address senderFP, Address senderPC) {
+     if (senderDwarf == null) { // Sender frame is Java
        // CFA is not available on Java frame
        return null;
      }
 
-     // Next frame is Native
-     int nextCFAReg = nextDwarf.getCFARegister();
-     return switch(nextCFAReg){
-       case AMD64ThreadContext.RBP -> getNextRBP(senderFP).addOffsetTo(nextDwarf.getCFAOffset());
-       case AMD64ThreadContext.RSP -> getNextRSP().addOffsetTo(nextDwarf.getCFAOffset());
-       default -> throw new DebuggerException("Unsupported CFA register: " + nextCFAReg);
+     // Sender frame is Native
+     int senderCFAReg = senderDwarf.getCFARegister();
+     return switch(senderCFAReg){
+       case AMD64ThreadContext.RBP -> getSenderRBP(senderFP).addOffsetTo(senderDwarf.getCFAOffset());
+       case AMD64ThreadContext.RSP -> getSenderRSP().addOffsetTo(senderDwarf.getCFAOffset());
+       default -> throw new DebuggerException("Unsupported CFA register: " + senderCFAReg);
      };
    }
 
@@ -177,7 +177,7 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
    }
 
    @Override
-   public CFrame sender(ThreadProxy th, Address sp, Address fp, Address pc) {
+   public CFrame sender(ThreadProxy th, Address senderSP, Address senderFP, Address senderPC) {
      if (dbg.isSignalTrampoline(pc())) {
        // RSP points signal context
        //   https://github.com/torvalds/linux/blob/v6.17/arch/x86/kernel/signal.c#L94
@@ -186,24 +186,24 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
 
      ThreadContext context = th.getContext();
 
-     Address nextRSP = sp != null ? sp : getNextRSP();
-     if (nextRSP == null) {
+     senderSP = senderSP != null ? senderSP : getSenderRSP();
+     if (senderSP == null) {
        return null;
      }
-     Address nextPC = pc != null ? pc : getNextPC();
-     if (nextPC == null) {
+     senderPC = senderPC != null ? senderPC : getSenderPC();
+     if (senderPC == null) {
        return null;
      }
 
-     DwarfParser nextDwarf = null;
+     DwarfParser senderDwarf = null;
      boolean fallback = false;
      try {
-       nextDwarf = createDwarfParser(nextPC);
+       senderDwarf = createDwarfParser(senderPC);
      } catch (DebuggerException _) {
        // Try again with RIP-1 in case RIP is just outside function bounds,
        // due to function ending with a `call` instruction.
        try {
-         nextDwarf = createDwarfParser(nextPC.addOffsetTo(-1));
+         senderDwarf = createDwarfParser(senderPC.addOffsetTo(-1));
          fallback = true;
        } catch (DebuggerException _) {
          // DWARF processing should succeed when the frame is native
@@ -213,42 +213,42 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
        }
      }
 
-     Address nextRBP = getNextRBP(fp);
+     Address senderRBP = getSenderRBP(senderFP);
 
      try {
-       Address nextCFA = getNextCFA(nextDwarf, fp, nextPC);
-       return isValidFrame(nextCFA, nextRBP)
-         ? new LinuxAMD64CFrame(dbg, nextRSP, nextRBP, nextCFA, nextPC, nextDwarf, fallback)
+       Address senderCFA = getSenderCFA(senderDwarf, senderFP, senderPC);
+       return isValidFrame(senderCFA, senderRBP)
+         ? new LinuxAMD64CFrame(dbg, senderSP, senderRBP, senderCFA, senderPC, senderDwarf, fallback)
          : null;
      } catch (DebuggerException e) {
-       if (dbg.isSignalTrampoline(nextPC)) {
+       if (dbg.isSignalTrampoline(senderPC)) {
          // We can through the caller frame if it is signal trampoline.
-         // getNextCFA() might fail because DwarfParser cannot find out CFA register.
-         return new LinuxAMD64CFrame(dbg, nextRSP, nextRBP, null, nextPC, nextDwarf, fallback);
+         // getSenderCFA() might fail because DwarfParser cannot find out CFA register.
+         return new LinuxAMD64CFrame(dbg, senderSP, senderRBP, null, senderPC, senderDwarf, fallback);
        }
 
-       // Rethrow the original exception if getNextCFA() failed
+       // Rethrow the original exception if getSenderCFA() failed
        // and the caller is not signal trampoline.
        throw e;
      }
    }
 
    private DwarfParser createDwarfParser(Address pc) throws DebuggerException {
-     DwarfParser nextDwarf = null;
+     DwarfParser senderDwarf = null;
      Address libptr = dbg.findLibPtrByAddress(pc);
      if (libptr != null) {
        try {
-         nextDwarf = new DwarfParser(libptr);
+         senderDwarf = new DwarfParser(libptr);
        } catch (DebuggerException _) {
          // Bail out to Java frame
        }
      }
 
-     if (nextDwarf != null) {
-       nextDwarf.processDwarf(pc);
+     if (senderDwarf != null) {
+       senderDwarf.processDwarf(pc);
      }
 
-     return nextDwarf;
+     return senderDwarf;
    }
 
    @Override
