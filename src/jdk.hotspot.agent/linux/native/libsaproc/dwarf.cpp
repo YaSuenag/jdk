@@ -24,6 +24,7 @@
  */
 
 #include <cstring>
+#include <stack>
 
 #include "dwarf.hpp"
 #include "libproc_impl.h"
@@ -31,21 +32,22 @@
 DwarfParser::DwarfParser(lib_info *lib) : _lib(lib),
                                           _buf(NULL),
                                           _encoding(0),
-                                          _cfa_reg(MAX_VALUE),
-                                          _return_address_reg(MAX_VALUE),
                                           _code_factor(0),
                                           _data_factor(0),
-                                          _current_pc(0L),
-                                          _cfa_offset(0),
-                                          _offset_from_cfa() {
-  init_offset_map(_offset_from_cfa);
+                                          _current_pc(0L) {
+  init_state(_initial_state);
+  init_state(_state);
 }
 
-void DwarfParser::init_offset_map(std::map<enum DWARF_Register, int>& offset_map) {
-  offset_map.clear();
+void DwarfParser::init_state(struct DwarfState& st) {
+  st.cfa_reg = MAX_VALUE;
+  st.return_address_reg = MAX_VALUE;
+  st.cfa_offset = 0;
+
+  st.offset_from_cfa.clear();
 
 #define DWARF_REG(reg, no) \
-  offset_map[reg] = INT_MAX;
+  st.offset_from_cfa[reg] = INT_MAX;
 
   DWARF_REGLIST
   DWARF_PSEUDO_REGLIST
@@ -107,7 +109,7 @@ bool DwarfParser::process_cie(unsigned char *start_of_entry, uint32_t id) {
 
   _code_factor = read_leb(false);
   _data_factor = static_cast<int>(read_leb(true));
-  _return_address_reg = static_cast<enum DWARF_Register>(*_buf++);
+  enum DWARF_Register initial_ra = static_cast<enum DWARF_Register>(*_buf++);
 
   if (strpbrk(augmentation_string, "LP") != NULL) {
     // Language personality routine (P) and Language Specific Data Area (LSDA:L)
@@ -124,13 +126,12 @@ bool DwarfParser::process_cie(unsigned char *start_of_entry, uint32_t id) {
 
   // Clear state
   _current_pc = 0L;
-  _cfa_reg = MAX_VALUE;
-  _return_address_reg = MAX_VALUE;
-  _cfa_offset = 0;
-  init_offset_map(_offset_from_cfa);
+  init_state(_state);
+  _state.return_address_reg = initial_ra;
 
   parse_dwarf_instructions(0L, static_cast<uintptr_t>(-1L), end);
 
+  _initial_state = _state;
   _buf = orig_pos;
   return true;
 }
@@ -138,12 +139,7 @@ bool DwarfParser::process_cie(unsigned char *start_of_entry, uint32_t id) {
 void DwarfParser::parse_dwarf_instructions(uintptr_t begin, uintptr_t pc, const unsigned char *end) {
   uintptr_t operand1;
   _current_pc = begin;
-
-  /* for remember state */
-  enum DWARF_Register rem_cfa_reg = MAX_VALUE;
-  enum DWARF_Register rem_return_address_reg = MAX_VALUE;
-  int rem_cfa_offset = 0;
-  std::map<enum DWARF_Register, int> rem_offset_from_cfa;
+  std::stack<struct DwarfState> remember_state;
 
   while ((_buf < end) && (_current_pc < pc)) {
     unsigned char op = *_buf++;
@@ -162,17 +158,17 @@ void DwarfParser::parse_dwarf_instructions(uintptr_t begin, uintptr_t pc, const 
         }
         break;
       case 0x0c: // DW_CFA_def_cfa
-        _cfa_reg = static_cast<enum DWARF_Register>(read_leb(false));
-        _cfa_offset = read_leb(false);
+        _state.cfa_reg = static_cast<enum DWARF_Register>(read_leb(false));
+        _state.cfa_offset = read_leb(false);
         break;
       case 0x80: {// DW_CFA_offset
         operand1 = read_leb(false);
         enum DWARF_Register reg = static_cast<enum DWARF_Register>(opa);
-        _offset_from_cfa[reg] = operand1 * _data_factor;
+        _state.offset_from_cfa[reg] = operand1 * _data_factor;
         break;
       }
       case 0xe:  // DW_CFA_def_cfa_offset
-        _cfa_offset = read_leb(false);
+        _state.cfa_offset = read_leb(false);
         break;
       case 0x40: // DW_CFA_advance_loc
         if (_current_pc != 0L) {
@@ -204,30 +200,29 @@ void DwarfParser::parse_dwarf_instructions(uintptr_t begin, uintptr_t pc, const 
       }
       case 0x07: { // DW_CFA_undefined
         enum DWARF_Register reg = static_cast<enum DWARF_Register>(read_leb(false));
-        _offset_from_cfa[reg] = INT_MAX;
+        _state.offset_from_cfa[reg] = INT_MAX;
         break;
       }
-      case 0x0d: {// DW_CFA_def_cfa_register
-        _cfa_reg = static_cast<enum DWARF_Register>(read_leb(false));
+      case 0x0d: // DW_CFA_def_cfa_register
+        _state.cfa_reg = static_cast<enum DWARF_Register>(read_leb(false));
         break;
-      }
       case 0x0a: // DW_CFA_remember_state
-        rem_cfa_reg = _cfa_reg;
-        rem_return_address_reg = _return_address_reg;
-        rem_cfa_offset = _cfa_offset;
-        rem_offset_from_cfa = _offset_from_cfa;
-
-        _cfa_reg = MAX_VALUE;
-        _return_address_reg = MAX_VALUE;
-        _cfa_offset = 0;
-        init_offset_map(_offset_from_cfa);
+        remember_state.push(_state);
+        init_state(_state);
         break;
       case 0x0b: // DW_CFA_restore_state
-        _cfa_reg = rem_cfa_reg;
-        _return_address_reg = rem_return_address_reg;
-        _cfa_offset = rem_cfa_offset;
-        _offset_from_cfa = rem_offset_from_cfa;
+        if (remember_state.empty()) {
+          print_debug("DWARF: Remember State is empty even though DW_CFA_restore_state is saw.\n");
+          return;
+        }
+        _state = remember_state.top();
+        remember_state.pop();
         break;
+      case 0xc0: {// DW_CFA_restore
+        enum DWARF_Register reg = static_cast<enum DWARF_Register>(opa);
+        _state.offset_from_cfa[reg] = _initial_state.offset_from_cfa[reg];
+        break;
+      }
       default:
         print_debug("DWARF: Unknown opcode: 0x%x\n", op);
         return;
