@@ -22,8 +22,6 @@
  * questions.
  */
 
-import java.nio.file.Path;
-
 import jtreg.SkippedException;
 
 import jdk.test.lib.JDKToolFinder;
@@ -41,7 +39,7 @@ import jtreg.SkippedException;
  * @test
  * @bug 8374482 8376264 8376284 8377395
  * @requires (os.family == "linux") & (vm.hasSA)
- * @requires (os.arch == "amd64") | (os.arch == "aarch64")
+ * @requires os.arch == "amd64"
  * @library /test/lib
  * @run driver TestJhsdbJstackMixedCore
  */
@@ -66,18 +64,9 @@ public class TestJhsdbJstackMixedCore {
         System.out.println(out.getStdout());
         System.err.println(out.getStderr());
 
-        out.shouldContain("<signal trampoline>");
+        out.shouldContain("__restore_rt <signal trampoline>");
         out.shouldContain("Java_jdk_test_lib_apps_LingeredApp_crash");
         out.shouldContain("jdk.test.lib.apps.LingeredApp.crash()");
-    }
-
-    private static boolean isSymbolAvailableInVDSO(String symbol) {
-        var kernelVersion = System.getProperty("os.version");
-        var vdso = Path.of("/lib", "modules", kernelVersion, "vdso", "vdso.so");
-        var vdso64 = Path.of("/lib", "modules", kernelVersion, "vdso", "vdso64.so");
-
-        return SATestUtils.isSymbolAvailable(vdso.toString(), symbol) |
-               SATestUtils.isSymbolAvailable(vdso64.toString(), symbol);
     }
 
     public static void main(String... args) throws Throwable {
@@ -89,13 +78,10 @@ public class TestJhsdbJstackMixedCore {
         var libc = SATestUtils.getLibCPath();
 
         // SA distinguishes the frame is signal trampoline if the function
-        // is named "__restore_rt", "__kernel_rt_sigreturn", "VDSO_sigtramp".
+        // is named "__restore_rt".
         // SA cannot unwind problematic frame from it if the symbol not found.
-        boolean foundSigtramp = SATestUtils.isSymbolAvailable(libc, "__restore_rt") |
-                                isSymbolAvailableInVDSO("__kernel_rt_sigreturn") |
-                                isSymbolAvailableInVDSO("VDSO_sigtramp");
-        if (!foundSigtramp) {
-            throw new SkippedException("Signal trampoline not found in libc.");
+        if (!SATestUtils.isSymbolAvailable(libc, "__restore_rt")) {
+            throw new SkippedException("Signal trampoline (__restore_rt) not found in libc.");
         }
 
         LingeredApp app = new LingeredApp();

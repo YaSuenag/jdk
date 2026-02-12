@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,11 +30,13 @@
 #include <elf.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #include <sys/uio.h>
 #include "libproc_impl.h"
+#include "elfmacros.h"
 
 #if defined(x86_64) && !defined(amd64)
 #define amd64 1
@@ -459,6 +461,28 @@ Pgrab(pid_t pid, char* err_buf, size_t err_buf_len) {
     free(ph);
     return NULL;
   }
+
+#ifdef __aarch64__
+  {
+    ph->pac_enabled = false; // set false by default
+
+    char auxv_path[PATH_MAX];
+    snprintf(auxv_path, sizeof(auxv_path), "/proc/%d/auxv", pid);
+    int auxv_fd = open(auxv_path, O_RDONLY);
+    if (auxv_fd != 0) {
+      ELF_AUXV auxv;
+      while (read(auxv_fd, &auxv, sizeof(auxv)) == sizeof(auxv)) {
+        if (auxv.a_type == AT_HWCAP) {
+          ph->pac_enabled = auxv.a_un.a_val & HWCAP_PACA;
+          break;
+        } else if (auxv.a_type == AT_NULL) {
+          break;
+        }
+      }
+      close(auxv_fd);
+    }
+  }
+#endif
 
   // initialize ps_prochandle
   ph->pid = pid;
