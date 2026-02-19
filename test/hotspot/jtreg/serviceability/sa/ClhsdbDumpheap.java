@@ -72,7 +72,7 @@ public class ClhsdbDumpheap {
     private static void verifyLocalRefs(String file) throws IOException {
         try (var snapshot = HprofReader.readFile(file, false, 0)) {
             for (var root = snapshot.getRoots(); root.hasMoreElements();) {
-                if (root.nextElement().getType() == Root.SYSTEM_CLASS) {
+                if (root.nextElement().getType() == Root.JAVA_LOCAL) {
                     // expected
                     return;
                 }
@@ -84,7 +84,7 @@ public class ClhsdbDumpheap {
     private static void verifyStickyClasses(String file) throws IOException {
         try (var snapshot = HprofReader.readFile(file, false, 0)) {
             for (var root = snapshot.getRoots(); root.hasMoreElements();) {
-                if (root.nextElement().getType() == Root.JAVA_LOCAL) {
+                if (root.nextElement().getType() == Root.SYSTEM_CLASS) {
                     // expected
                     return;
                 }
