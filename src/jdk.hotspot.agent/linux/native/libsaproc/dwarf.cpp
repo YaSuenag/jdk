@@ -203,7 +203,6 @@ void DwarfParser::parse_dwarf_instructions(uintptr_t begin, uintptr_t pc, const 
         break;
       case 0x0a: // DW_CFA_remember_state
         remember_state.push(_state);
-        init_state(_state);
         break;
       case 0x0b: // DW_CFA_restore_state
         if (remember_state.empty()) {
