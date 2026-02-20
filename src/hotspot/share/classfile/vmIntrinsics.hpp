@@ -1027,7 +1027,7 @@ class methodHandle;
   do_intrinsic(_VectorUnaryLibOp, jdk_internal_vm_vector_VectorSupport, vector_unary_lib_op_name, vector_unary_lib_op_sig, F_S)                \
    do_signature(vector_unary_lib_op_sig,"(J"                                                                                                   \
                                          "Ljava/lang/Class;"                                                                                   \
-                                         "Ljava/lang/Class;"                                                                                   \
+                                         "I"                                                                                                   \
                                          "I"                                                                                                   \
                                          "Ljava/lang/String;"                                                                                  \
                                          "Ljdk/internal/vm/vector/VectorSupport$Vector;"                                                       \
@@ -1038,7 +1038,7 @@ class methodHandle;
   do_intrinsic(_VectorBinaryLibOp, jdk_internal_vm_vector_VectorSupport, vector_binary_lib_op_name, vector_binary_lib_op_sig, F_S)             \
    do_signature(vector_binary_lib_op_sig,"(J"                                                                                                  \
                                           "Ljava/lang/Class;"                                                                                  \
-                                          "Ljava/lang/Class;"                                                                                  \
+                                          "I"                                                                                                  \
                                           "I"                                                                                                  \
                                           "Ljava/lang/String;"                                                                                 \
                                           "Ljdk/internal/vm/vector/VectorSupport$VectorPayload;"                                               \

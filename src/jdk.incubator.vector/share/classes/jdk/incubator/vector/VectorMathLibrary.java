@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -292,8 +292,9 @@ import static jdk.internal.vm.vector.Utils.debug;
         if (entryAddress != 0) {
             @SuppressWarnings({"unchecked"})
             Class<V> vt = (Class<V>)vspecies.vectorType();
+            AbstractSpecies<E> asp = (AbstractSpecies<E>)vspecies;
             return VectorSupport.libraryUnaryOp(
-                    entry.entry.address(), vt, vspecies.elementType(), vspecies.length(), entry.name,
+                    entry.entry.address(), vt, asp.laneTypeOrdinal(), asp.length(), entry.name,
                     v,
                     entry.impl);
         } else {
@@ -313,8 +314,9 @@ import static jdk.internal.vm.vector.Utils.debug;
         if (entryAddress != 0) {
             @SuppressWarnings({"unchecked"})
             Class<V> vt = (Class<V>)vspecies.vectorType();
+            AbstractSpecies<E> asp = (AbstractSpecies<E>)vspecies;
             return VectorSupport.libraryBinaryOp(
-                    entry.entry.address(), vt, vspecies.elementType(), vspecies.length(), entry.name,
+                    entry.entry.address(), vt, asp.laneTypeOrdinal(), asp.length(), entry.name,
                     v1, v2,
                     entry.impl);
         } else {
