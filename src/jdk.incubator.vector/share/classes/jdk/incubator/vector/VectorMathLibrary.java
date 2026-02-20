@@ -283,7 +283,7 @@ import static jdk.internal.vm.vector.Utils.debug;
     @ForceInline
     /*package-private*/ static
     <E, V extends Vector<E>>
-    V unaryMathOp(Unary op, int opc, VectorSpecies<E> vspecies,
+    V unaryMathOp(Unary op, int opc, AbstractSpecies<E> vspecies,
                   IntFunction<VectorSupport.UnaryOperation<V,?>> implSupplier,
                   V v) {
         var entry = lookup(op, opc, vspecies, implSupplier);
@@ -292,9 +292,8 @@ import static jdk.internal.vm.vector.Utils.debug;
         if (entryAddress != 0) {
             @SuppressWarnings({"unchecked"})
             Class<V> vt = (Class<V>)vspecies.vectorType();
-            AbstractSpecies<E> asp = (AbstractSpecies<E>)vspecies;
             return VectorSupport.libraryUnaryOp(
-                    entry.entry.address(), vt, asp.laneTypeOrdinal(), asp.length(), entry.name,
+                    entry.entry.address(), vt, vspecies.laneTypeOrdinal(), vspecies.length(), entry.name,
                     v,
                     entry.impl);
         } else {
@@ -305,7 +304,7 @@ import static jdk.internal.vm.vector.Utils.debug;
     @ForceInline
     /*package-private*/ static
     <E, V extends Vector<E>>
-    V binaryMathOp(Binary op, int opc, VectorSpecies<E> vspecies,
+    V binaryMathOp(Binary op, int opc, AbstractSpecies<E> vspecies,
                    IntFunction<VectorSupport.BinaryOperation<V,?>> implSupplier,
                    V v1, V v2) {
         var entry = lookup(op, opc, vspecies, implSupplier);
@@ -314,9 +313,8 @@ import static jdk.internal.vm.vector.Utils.debug;
         if (entryAddress != 0) {
             @SuppressWarnings({"unchecked"})
             Class<V> vt = (Class<V>)vspecies.vectorType();
-            AbstractSpecies<E> asp = (AbstractSpecies<E>)vspecies;
             return VectorSupport.libraryBinaryOp(
-                    entry.entry.address(), vt, asp.laneTypeOrdinal(), asp.length(), entry.name,
+                    entry.entry.address(), vt, vspecies.laneTypeOrdinal(), vspecies.length(), entry.name,
                     v1, v2,
                     entry.impl);
         } else {
