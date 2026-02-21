@@ -1478,6 +1478,11 @@ public class IRNode {
         beforeMatchingNameRegex(VECTOR_MASK_FIRST_TRUE, "VectorMaskFirstTrue");
     }
 
+    public static final String CALL_LEAF_VECTOR = PREFIX + "CALL_LEAF_VECTOR" + POSTFIX;
+    static {
+        beforeMatchingNameRegex(CALL_LEAF_VECTOR, "CallLeafVector");
+    }
+
     // Can only be used if avx512_vnni is available.
     public static final String MUL_ADD_VS2VI_VNNI = PREFIX + "MUL_ADD_VS2VI_VNNI" + POSTFIX;
     static {
