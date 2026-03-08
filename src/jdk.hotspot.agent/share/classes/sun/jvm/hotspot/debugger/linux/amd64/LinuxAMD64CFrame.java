@@ -47,15 +47,7 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
 
       if (libptr != null) { // Native frame
         dwarf = new DwarfParser(libptr);
-        try {
-          dwarf.processDwarf(rip);
-        } catch (DebuggerException e) {
-          // DWARF processing should succeed when the frame is native
-          // but it might fail if Common Information Entry (CIE) has language
-          // personality routine and/or Language Specific Data Area (LSDA).
-          return new LinuxAMD64CFrame(dbg, rsp, rbp, cfa, rip, dwarf, true);
-        }
-
+        dwarf.processDwarf(rip);
         cfa = getreg.apply(dwarf.getCFARegister())
                     .addOffsetTo(dwarf.getCFAOffset());
       }
@@ -202,15 +194,8 @@ public final class LinuxAMD64CFrame extends BasicCFrame {
      } catch (DebuggerException _) {
        // Try again with RIP-1 in case RIP is just outside function bounds,
        // due to function ending with a `call` instruction.
-       try {
-         nextDwarf = createDwarfParser(nextPC.addOffsetTo(-1));
-         fallback = true;
-       } catch (DebuggerException _) {
-         // DWARF processing should succeed when the frame is native
-         // but it might fail if Common Information Entry (CIE) has language
-         // personality routine and/or Language Specific Data Area (LSDA).
-         return null;
-       }
+       nextDwarf = createDwarfParser(nextPC.addOffsetTo(-1));
+       fallback = true;
      }
 
      Address nextRBP = getNextRBP(fp);
