@@ -40,14 +40,14 @@ import jdk.incubator.vector.*;
 public class TestVectorLibraryUnaryOpAndBinaryOp {
 
     @Test
-    @IR(counts = { IRNode.CALL_LEAF_VECTOR, "= 1" }, applyIfCPUFeatureOr = { "asimd", "true", "avx", "true" })
+    @IR(counts = { IRNode.CALL_LEAF_VECTOR, "= 1" }, applyIfPlatformOr = { "svml", "true", "sleef", "true" })
     public static void testUnary() {
         var vec = FloatVector.broadcast(FloatVector.SPECIES_128, 3.14f);
         vec.lanewise(VectorOperators.COS);
     }
 
     @Test
-    @IR(counts = { IRNode.CALL_LEAF_VECTOR, "= 1" }, applyIfCPUFeatureOr = { "asimd", "true", "avx", "true" })
+    @IR(counts = { IRNode.CALL_LEAF_VECTOR, "= 1" }, applyIfPlatformOr = { "svml", "true", "sleef", "true" })
     public static void testBinary() {
         var vec = FloatVector.broadcast(FloatVector.SPECIES_128, 2.0f);
         vec.lanewise(VectorOperators.HYPOT, 1.0f);

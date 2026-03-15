@@ -80,7 +80,10 @@ public class ApplicableIRRulesPrinter {
         "64-bit",
         // java.nio.ByteOrder
         "little-endian",
-        "big-endian"
+        "big-endian",
+        // Vector API library for intrinsics
+        "svml",
+        "sleef"
     ));
 
     // Please verify new CPU features before adding them. If we allow non-existent features
@@ -381,7 +384,21 @@ public class ApplicableIRRulesPrinter {
 
         String endianess = ByteOrder.nativeOrder().equals(ByteOrder.BIG_ENDIAN)? "big-endian" : "little-endian";
 
-        String currentPlatform = os + " " + arch + " " + (Platform.is32bit() ? "32-bit" : "64-bit") + " " + endianess;
+        // Check VectorMathLibrary through Reflection API because it is package private.
+        String vectorMathLib = ""; // empty by default
+        try {
+            var clsVML = Class.forName("jdk.incubator.vector.VectorMathLibrary");
+            var getLib = clsVML.getMethod("getLibrary");
+            vectorMathLib = getLib.invoke(clsVML).getClass().getSimpleName().toLowerCase();
+        } catch (Exception _) {
+            // Can be ignored because vectorMathLib is already set to empty.
+        }
+
+        String currentPlatform = os +
+                                 " " + arch +
+                                 " " + (Platform.is32bit() ? "32-bit" : "64-bit") +
+                                 " " + endianess +
+                                 " " + vectorMathLib;
 
         return (trueValue && currentPlatform.contains(platform)) || (falseValue && !currentPlatform.contains(platform));
     }

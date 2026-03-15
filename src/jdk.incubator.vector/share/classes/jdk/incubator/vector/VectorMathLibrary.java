@@ -79,6 +79,11 @@ import static jdk.internal.vm.vector.Utils.debug;
 
     private static final Library LIBRARY = Library.getInstance();
 
+    // for testing
+    public static Library getLibrary() {
+        return LIBRARY;
+    }
+
     static {
         debug("%s library is used (cpu features: %s)", LIBRARY.getClass().getSimpleName(), CPUFeatures.features());
     }
