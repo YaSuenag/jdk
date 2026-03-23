@@ -388,8 +388,9 @@ public class ApplicableIRRulesPrinter {
         String vectorMathLib = ""; // empty by default
         try {
             var clsVML = Class.forName("jdk.incubator.vector.VectorMathLibrary");
-            var getLib = clsVML.getMethod("getLibrary");
-            vectorMathLib = getLib.invoke(clsVML).getClass().getSimpleName().toLowerCase();
+            var lib = clsVML.getDeclaredField("LIBRARY");
+            lib.setAccessible(true);
+            vectorMathLib = lib.get(null).getClass().getSimpleName().toLowerCase();
         } catch (Exception _) {
             // Can be ignored because vectorMathLib is already set to empty.
         }

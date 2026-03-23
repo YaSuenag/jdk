@@ -55,7 +55,13 @@ public class TestVectorLibraryUnaryOpAndBinaryOp {
 
     public static void main(String[] args) {
         TestFramework testFramework = new TestFramework();
-        testFramework.addFlags("--add-modules=jdk.incubator.vector")
+        testFramework.addFlags(
+            "--add-modules=jdk.incubator.vector",
+            // Open vectorapi to unnamed module because ApplicableIRRulesPrinter.java in
+            // IR framework should access private field in VectorMathLibrary to detect
+            // vector math library.
+            "--add-opens=jdk.incubator.vector/jdk.incubator.vector=ALL-UNNAMED"
+        )
                      .start();
     }
 

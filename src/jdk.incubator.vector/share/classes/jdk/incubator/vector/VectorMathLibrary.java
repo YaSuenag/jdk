@@ -24,6 +24,7 @@
  */
 package jdk.incubator.vector;
 
+import jdk.internal.util.OperatingSystem;
 import jdk.internal.vm.annotation.DontInline;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
@@ -69,20 +70,21 @@ import static jdk.internal.vm.vector.Utils.debug;
         }
 
         static String getDefaultName() {
-            return switch (System.getProperty("os.arch")) {
-                case "amd64", "x86_64" -> SVML;
-                case "aarch64", "riscv64" -> SLEEF;
-                default -> JAVA;
-            };
+            String arch = System.getProperty("os.arch");
+            if (arch.equals("amd64") || arch.equals("x86_64")) {
+                if (OperatingSystem.isLinux() || OperatingSystem.isWindows()) {
+                    return SVML;
+                }
+            } else if (arch.equals("aarch64") || arch.equals("riscv64")) {
+                if (OperatingSystem.isLinux() || OperatingSystem.isMacOS()) {
+                    return SLEEF;
+                }
+            }
+            return JAVA;
         }
     }
 
     private static final Library LIBRARY = Library.getInstance();
-
-    // for testing
-    public static Library getLibrary() {
-        return LIBRARY;
-    }
 
     static {
         debug("%s library is used (cpu features: %s)", LIBRARY.getClass().getSimpleName(), CPUFeatures.features());
