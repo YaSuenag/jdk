@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2026, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -153,22 +153,22 @@ ifeq ($(call isTargetOsType, unix), true)
 endif
 
 ################################################################################
-## Build libsyslookup
+## Build libsyslookup (other than Linux)
 ## The LIBDL dependency on Linux is needed to dynamically access libdl symbols,
 ## which may be needed as part of resolving some standard symbols
 ################################################################################
 
-$(eval $(call SetupJdkLibrary, BUILD_LIBSYSLOOKUP, \
-    NAME := syslookup, \
-    EXTRA_HEADER_DIRS := java.base:libjava, \
-    LD_SET_ORIGIN := false, \
-    LDFLAGS_linux := -Wl$(COMMA)--no-as-needed, \
-    LDFLAGS_aix := -brtl -bexpfull, \
-    LIBS_linux := $(LIBDL) $(LIBM), \
-    LIBS_aix := -ldecNumber $(LIBM), \
-))
+ifeq ($(call isTargetOs, linux), false)
+  $(eval $(call SetupJdkLibrary, BUILD_LIBSYSLOOKUP, \
+      NAME := syslookup, \
+      EXTRA_HEADER_DIRS := java.base:libjava, \
+      LD_SET_ORIGIN := false, \
+      LDFLAGS_aix := -brtl -bexpfull, \
+      LIBS_aix := -ldecNumber $(LIBM), \
+  ))
 
-TARGETS += $(BUILD_LIBSYSLOOKUP)
+  TARGETS += $(BUILD_LIBSYSLOOKUP)
+endif
 
 ifeq ($(ENABLE_FALLBACK_LINKER), true)
   ##############################################################################

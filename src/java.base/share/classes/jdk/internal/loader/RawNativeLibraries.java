@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,6 +84,14 @@ public final class RawNativeLibraries {
             return null;
         }
         return load(name);
+    }
+
+    /*
+     * Returns special NativeLibrary instance to be associated with RTLD_DEFAULT.
+     * Note the instance would be worked on Linux only.
+     */
+    public NativeLibrary defaultLibrary() {
+        return DefaultLibrary.getInstance();
     }
 
     /**
@@ -176,6 +184,31 @@ public final class RawNativeLibraries {
          */
         void close() {
             unload0(name, handle);
+        }
+    }
+
+    static class DefaultLibrary extends RawNativeLibraryImpl {
+        private static final long RTLD_DEFAULT = 0L; // from dlfcn.h
+
+        private static DefaultLibrary INSTANCE = new DefaultLibrary();
+
+        private DefaultLibrary() {
+            super("<default>");
+            this.handle = RTLD_DEFAULT;
+        }
+
+        static DefaultLibrary getInstance() {
+            return INSTANCE;
+        }
+
+        @Override
+        boolean open() {
+            throw new InternalError("This method should not be called");
+        }
+
+        @Override
+        void close() {
+            throw new InternalError("This method should not be called");
         }
     }
 

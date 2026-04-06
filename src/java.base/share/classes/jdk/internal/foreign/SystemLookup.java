@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,8 +132,14 @@ public final class SystemLookup implements SymbolLookup {
 
     @SuppressWarnings("restricted")
     private static SymbolLookup sysLookup() {
-        NativeLibraries libs = NativeLibraries.newInstance(null);
-        NativeLibrary lib = libs.loadLibrary(SymbolLookup.class, "syslookup");
+        NativeLibrary lib;
+        if (OperatingSystem.isLinux()) {
+            RawNativeLibraries libs = RawNativeLibraries.newInstance(MethodHandles.lookup());
+            lib = libs.defaultLibrary();
+        } else {
+            NativeLibraries libs = NativeLibraries.newInstance(null);
+            lib = libs.loadLibrary(SymbolLookup.class, "syslookup");
+        }
         return lookup(lib);
     }
 
