@@ -150,7 +150,7 @@ public final class LinuxAARCH64CFrame extends DwarfCFrame {
       boolean fallback = false;
       try {
         senderDwarf = createDwarfParser(linuxDbg(), senderPC);
-      } catch (DebuggerException _) {
+      } catch (DebuggerException e) {
         // Try again with PC-1 in case PC is just outside function bounds,
         // due to function ending with a `call` instruction.
         try {
@@ -162,11 +162,8 @@ public final class LinuxAARCH64CFrame extends DwarfCFrame {
             // DWARF processing might fail because vdso.so .eh_frame is not required on aarch64.
             return new LinuxAARCH64CFrame(linuxDbg(), senderSP, senderFP, null, senderPC, senderDwarf);
           }
-
-          // DWARF processing should succeed when the frame is native
-          // but it might fail if Common Information Entry (CIE) has language
-          // personality routine and/or Language Specific Data Area (LSDA).
-          return null;
+          // Rethrow the original exception if the frame is not a signal trampoline.
+          throw e;
         }
       }
 
