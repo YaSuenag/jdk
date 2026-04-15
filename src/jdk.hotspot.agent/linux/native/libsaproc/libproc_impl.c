@@ -231,7 +231,6 @@ bool read_eh_frame(struct ps_prochandle* ph, lib_info* lib) {
 
   for (cnt = 0, sh = shbuf; cnt < ehdr.e_shnum; cnt++, sh++) {
     if (strcmp(".eh_frame", sh->sh_name + strtab) == 0) {
-      lib->eh_frame.library_base_addr = lib->base;
       lib->eh_frame.v_addr = sh->sh_addr;
       lib->eh_frame.data = read_section_data(lib->fd, &ehdr, sh);
       lib->eh_frame.size = sh->sh_size;
