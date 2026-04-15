@@ -34,6 +34,9 @@ struct elf_section {
   void       *c_data;
 };
 
+// open debuginfo
+int open_debuginfo(const char* filename, int fd, ELF_SHDR* shbuf, ELF_EHDR* ehdr, struct elf_section* scn_cache);
+
 // read ELF file header.
 int read_elf_header(int fd, ELF_EHDR* ehdr);
 
