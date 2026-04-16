@@ -34,8 +34,12 @@ struct elf_section {
   void       *c_data;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // open debuginfo
-int open_debuginfo(const char* filename, int fd, ELF_SHDR* shbuf, ELF_EHDR* ehdr, struct elf_section* scn_cache);
+int open_debuginfo(const char* filename, int fd);
 
 // read ELF file header.
 int read_elf_header(int fd, ELF_EHDR* ehdr);
@@ -63,4 +67,9 @@ struct elf_section *find_section_by_name(char *name,
                                          int fd,
                                          ELF_EHDR *ehdr,
                                          struct elf_section *scn_cache);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* _SALIBELF_H_ */

@@ -52,13 +52,8 @@ typedef struct symtab {
 static struct symtab* build_symtab_internal(int fd, const char *filename, bool try_debuginfo);
 
 /* Try to open a suitable debuginfo file and read a symbol table from it. */
-static struct symtab *build_symtab_from_debuginfo(const char* name,
-                                     int fd,
-                                     ELF_SHDR* shbuf,
-                                     ELF_EHDR* ehdr,
-                                     struct elf_section* scn_cache)
-{
-  int debug_fd = open_debuginfo(name, fd, shbuf, ehdr, scn_cache);
+static struct symtab *build_symtab_from_debuginfo(const char* filename, int fd) {
+  int debug_fd = open_debuginfo(filename, fd);
   if (debug_fd >= 0) {
     struct symtab *symtab = build_symtab_internal(debug_fd, NULL, /* try_debuginfo */ false);
     close(debug_fd);
@@ -244,7 +239,7 @@ static struct symtab* build_symtab_internal(int fd, const char *filename, bool t
     // the debuginfo file.  We stash a copy of the old symtab in case
     // there is no debuginfo.
     struct symtab* prev_symtab = symtab;
-    symtab = build_symtab_from_debuginfo(filename, fd, shbuf, &ehdr, scn_cache);
+    symtab = build_symtab_from_debuginfo(filename, fd);
 
     // If we still haven't found a symtab, use the object's own symtab.
     if (symtab != NULL) {

@@ -246,12 +246,35 @@ static int open_debuginfo_from_build_id(ELF_SHDR* shbuf, ELF_EHDR* ehdr, struct 
   return -1;
 }
 
-int open_debuginfo(const char* filename, int fd, ELF_SHDR* shbuf, ELF_EHDR* ehdr, struct elf_section* scn_cache) {
-  int debug_fd = open_debuginfo_from_debug_link(filename, fd, ehdr, scn_cache);
+int open_debuginfo(const char* filename, int fd) {
+  // prepare (load ELF sections)
+  ELF_EHDR ehdr;
+  read_elf_header(fd, &ehdr);
+  ELF_SHDR* shbuf = read_section_header_table(fd, &ehdr);
+  struct elf_section *scn_cache = (struct elf_section *)calloc(ehdr.e_shnum, sizeof(struct elf_section));
+  for (int cnt = 0; cnt < ehdr.e_shnum; cnt++) {
+    scn_cache[cnt].c_shdr = &shbuf[cnt];
+    if (shbuf[cnt].sh_type == SHT_NOTE || shbuf[cnt].sh_type == SHT_STRTAB) {
+      scn_cache[cnt].c_data = read_section_data(fd, &ehdr, &shbuf[cnt]);
+    }
+  }
+
+  // attempt to open debuginfo
+  int debug_fd = open_debuginfo_from_debug_link(filename, fd, &ehdr, scn_cache);
   if (debug_fd == -1) {
     // try again with build id.
-    debug_fd = open_debuginfo_from_build_id(shbuf, ehdr, scn_cache);
+    debug_fd = open_debuginfo_from_build_id(shbuf, &ehdr, scn_cache);
   }
+
+  // cleanup
+  for (int cnt = 0; cnt < ehdr.e_shnum; cnt++) {
+    if (shbuf[cnt].sh_type == SHT_NOTE) {
+      free(scn_cache[cnt].c_data);
+    }
+  }
+  free(scn_cache);
+  free(shbuf);
+
   return debug_fd;
 }
 
