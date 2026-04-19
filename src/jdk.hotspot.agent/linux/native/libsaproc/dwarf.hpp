@@ -93,7 +93,7 @@ class DwarfParser {
     }
 
     bool is_parseable() {
-      return _lib->eh_frame.data != NULL;
+      return _lib->frame.data != NULL;
     }
 };
 
