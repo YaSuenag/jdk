@@ -334,7 +334,7 @@ bool DwarfParser::process_dwarf(const uintptr_t pc) {
     uint32_t id = *(reinterpret_cast<uint32_t *>(_buf));
     _buf += 4;
     if (id != 0) { // FDE
-      uintptr_t pc_begin = get_decoded_value() + _lib->eh_frame.library_base_addr;
+      uintptr_t pc_begin = get_decoded_value() + _lib->base;
       uintptr_t pc_end = pc_begin + get_pc_range();
 
       if ((pc >= pc_begin) && (pc < pc_end)) {
