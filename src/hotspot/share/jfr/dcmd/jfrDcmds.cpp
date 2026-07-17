@@ -148,23 +148,20 @@ static void log(oop content, TRAPS) {
 // so this RAII would log level of jfr+startup to Info if needs, and would restore
 // it to Warning.
 class LogLevelForJfrStartupMark : StackObj {
-  private:
-    // true if original log level is warning - it is the case which this RAII
-    // should update log level.
-    bool _needs_update;
+    const bool _active;
 
   public:
     // Info or lower is enabled if the log level is Warning, thus we need to
     // check it is not Info (or lower).
     LogLevelForJfrStartupMark()
-      : _needs_update(log_is_enabled(Warning, jfr, startup) && !log_is_enabled(Info, jfr, startup)) {
-      if (_needs_update) {
+      : _active(log_is_enabled(Warning, jfr, startup) && !log_is_enabled(Info, jfr, startup)) {
+      if (_active) {
         LogConfiguration::configure_stdout(LogLevel::Info, true, LOG_TAGS(jfr, startup));
       }
     }
 
     ~LogLevelForJfrStartupMark() {
-      if (_needs_update) {
+      if (_active) {
         LogConfiguration::configure_stdout(LogLevel::Warning, true, LOG_TAGS(jfr, startup));
       }
     }
