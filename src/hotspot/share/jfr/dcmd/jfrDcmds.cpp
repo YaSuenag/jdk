@@ -144,7 +144,7 @@ static void log(oop content, TRAPS) {
 }
 
 // RAII object to ensure log level.
-// handle_dcmd_start() need to print info level jfr+startup message to stdout,
+// handle_dcmd_result() need to print info level jfr+startup message to stdout,
 // so this RAII would log level of jfr+startup to Info if needs, and would restore
 // it to Warning.
 class LogLevelForJfrStartupMark : StackObj {
