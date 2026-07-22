@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2015, Red Hat Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -95,7 +95,40 @@ public abstract class AARCH64ThreadContext implements ThreadContext {
     public static final int PC = 32;
     public static final int PSTATE = 33;
 
-    public static final int NPRGREG = 34;
+    public static final int V0  = 34;
+    public static final int V1  = 35;
+    public static final int V2  = 36;
+    public static final int V3  = 37;
+    public static final int V4  = 38;
+    public static final int V5  = 39;
+    public static final int V6  = 40;
+    public static final int V7  = 41;
+    public static final int V8  = 42;
+    public static final int V9  = 43;
+    public static final int V10 = 44;
+    public static final int V11 = 45;
+    public static final int V12 = 46;
+    public static final int V13 = 47;
+    public static final int V14 = 48;
+    public static final int V15 = 49;
+    public static final int V16 = 50;
+    public static final int V17 = 51;
+    public static final int V18 = 52;
+    public static final int V19 = 53;
+    public static final int V20 = 54;
+    public static final int V21 = 55;
+    public static final int V22 = 56;
+    public static final int V23 = 57;
+    public static final int V24 = 58;
+    public static final int V25 = 59;
+    public static final int V26 = 60;
+    public static final int V27 = 61;
+    public static final int V28 = 62;
+    public static final int V29 = 63;
+    public static final int V30 = 64;
+    public static final int V31 = 65;
+
+    public static final int NPRGREG = 66;
 
     private long[] data;
 
