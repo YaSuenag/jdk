@@ -274,6 +274,9 @@ public class InstanceKlass extends Klass {
     if (isInterface()) {
       size += wordLength;
     }
+    if (this instanceof InlineKlass) {
+      size += InlineKlass.Members.getSize();
+    }
     return alignSize(size);
   }
 

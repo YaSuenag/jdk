@@ -948,6 +948,8 @@
     declare_type(ConstMethod, MetaspaceObj)                               \
     declare_type(Annotations, MetaspaceObj)                               \
                                                                           \
+  declare_toplevel_type(InlineKlass::Members)                             \
+                                                                          \
   declare_toplevel_type(narrowKlass)                                      \
                                                                           \
   declare_toplevel_type(vtableEntry)                                      \

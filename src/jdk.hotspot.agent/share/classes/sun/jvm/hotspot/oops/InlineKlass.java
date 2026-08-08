@@ -37,6 +37,29 @@ import sun.jvm.hotspot.utilities.Observer;
 // An InstanceKlass is the VM level representation of a Java class.
 
 public class InlineKlass extends InstanceKlass {
+
+  public static class Members extends VMObject {
+
+    private static long size;
+
+    static {
+      VM.registerVMInitializedObserver((o, d) -> initialize(VM.getVM().getTypeDataBase()));
+    }
+
+    private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
+      Type type = db.lookupType("InlineKlass::Members");
+      size = type.getSize();
+    }
+
+    public Members(Address addr) {
+      super(addr);
+    }
+
+    public static long getSize() {
+      return size;
+    }
+  }
+
   static {
     VM.registerVMInitializedObserver(new Observer() {
         public void update(Observable o, Object data) {
