@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ public class Klass extends Metadata implements ClassConstants {
   // anon-enum constants for _layout_helper.
   public static int LH_INSTANCE_SLOW_PATH_BIT;
   public static int LH_LOG2_ELEMENT_SIZE_SHIFT;
+  public static int LH_LOG2_ELEMENT_SIZE_MASK;
   public static int LH_ELEMENT_TYPE_SHIFT;
   public static int LH_HEADER_SIZE_SHIFT;
   public static int LH_ARRAY_TAG_SHIFT;
@@ -69,6 +70,7 @@ public class Klass extends Metadata implements ClassConstants {
 
     LH_INSTANCE_SLOW_PATH_BIT  = db.lookupIntConstant("Klass::_lh_instance_slow_path_bit").intValue();
     LH_LOG2_ELEMENT_SIZE_SHIFT = db.lookupIntConstant("Klass::_lh_log2_element_size_shift").intValue();
+    LH_LOG2_ELEMENT_SIZE_MASK  = db.lookupIntConstant("Klass::_lh_log2_element_size_mask").intValue();
     LH_ELEMENT_TYPE_SHIFT      = db.lookupIntConstant("Klass::_lh_element_type_shift").intValue();
     LH_HEADER_SIZE_SHIFT       = db.lookupIntConstant("Klass::_lh_header_size_shift").intValue();
     LH_ARRAY_TAG_SHIFT         = db.lookupIntConstant("Klass::_lh_array_tag_shift").intValue();
@@ -198,4 +200,9 @@ public class Klass extends Metadata implements ClassConstants {
   // The subclasses override this to produce the correct form, eg
   //   Ljava/lang/String; For ArrayKlasses getName itself is the signature.
   public String signature() { return getName().asString(); }
+
+  public static int layoutHelperLog2ElementSize(int lh) {
+    int l2esz = (lh >>> LH_LOG2_ELEMENT_SIZE_SHIFT) & LH_LOG2_ELEMENT_SIZE_MASK;
+    return l2esz;
+  }
 }

@@ -30,23 +30,33 @@ import sun.jvm.hotspot.runtime.VMObject;
 
 // The class for an oop field simply provides access to the value.
 public class OopField extends Field {
-  public OopField(FieldIdentifier id, long offset, boolean isVMField) {
+
+  private final InlineKlass inlineKlass;
+
+  public OopField(FieldIdentifier id, long offset, boolean isVMField, InlineKlass inlineKlass) {
     super(id, offset, isVMField);
+    this.inlineKlass = inlineKlass;
+  }
+
+  public OopField(FieldIdentifier id, long offset, boolean isVMField) {
+    this(id, offset, isVMField, null);
   }
 
   public OopField(sun.jvm.hotspot.types.OopField vmField, long startOffset) {
-    super(new NamedFieldIdentifier(vmField.getName()), vmField.getOffset() + startOffset, true);
+    this(new NamedFieldIdentifier(vmField.getName()), vmField.getOffset() + startOffset, true);
   }
 
   public OopField(InstanceKlass holder, int fieldArrayIndex) {
     super(holder, fieldArrayIndex);
+    inlineKlass = null;
   }
 
   public Oop getValue(Oop obj) {
     if (!isVMField() && !obj.isInstance() && !obj.isArray()) {
       throw new InternalError();
     }
-    return obj.getHeap().newOop(getValueAsOopHandle(obj));
+    return inlineKlass == null ? obj.getHeap().newOop(getValueAsOopHandle(obj))
+                               : obj.getHeap().newOop(obj.getHandle().addOffsetToAsOopHandle(getOffset()), inlineKlass);
   }
 
   /** Debugging support */

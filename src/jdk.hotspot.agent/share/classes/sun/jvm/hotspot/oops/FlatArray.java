@@ -34,7 +34,7 @@ import sun.jvm.hotspot.utilities.Observer;
 
 // A FlatArray is an array containing flattened value objects.
 
-public class FlatArray extends Array {
+public class FlatArray extends ObjArray {
   static {
     VM.registerVMInitializedObserver(new Observer() {
         public void update(Observable o, Object data) {
@@ -57,14 +57,20 @@ public class FlatArray extends Array {
     klass.printValueOn(tty);
   }
 
-  public void iterateFields(OopVisitor visitor, boolean doVMFields) {
-    super.iterateFields(visitor, doVMFields);
-    FlatArrayKlass klass = (FlatArrayKlass) getKlass();
-    int length = (int) getLength();
-    int type   = klass.getElementType();
-    //System.out.println("FlatArray.iterateFields: length:" + length + " type:" + type);
+  @Override
+  protected void iterateFieldsInternal(OopVisitor visitor, int length) {
+    int shift = Klass.layoutHelperLog2ElementSize(getKlass().getLayoutHelper());
+    long baseOffset = baseOffsetInBytes(BasicType.T_FLAT_ELEMENT);
+    int elementSize = 1 << shift; // from FlatArrayKlass::oop_oop_iterate_elements_specialized_bounded() (addr_incr)
+
+    FlatArrayKlass klass = (FlatArrayKlass)getKlass();
+    InlineKlass elementKlass = (InlineKlass)klass.getElementKlass();
+
     for (int index = 0; index < length; index++) {
-        // FIXME - call visitor.doXXX() for each component of each value object
+      long offset = baseOffset + (index * elementSize) - elementKlass.members().payloadOffset();
+      OopField field = new OopField(new IndexableFieldIdentifier(index), offset, false, elementKlass);
+      visitor.doOop(field, false);
     }
   }
+
 }
