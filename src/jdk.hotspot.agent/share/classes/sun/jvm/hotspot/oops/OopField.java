@@ -27,6 +27,7 @@ package sun.jvm.hotspot.oops;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.runtime.VM;
 import sun.jvm.hotspot.runtime.VMObject;
+import sun.jvm.hotspot.utilities.SystemDictionaryHelper;
 
 // The class for an oop field simply provides access to the value.
 public class OopField extends Field {
@@ -55,8 +56,19 @@ public class OopField extends Field {
     if (!isVMField() && !obj.isInstance() && !obj.isArray()) {
       throw new InternalError();
     }
-    return inlineKlass == null ? obj.getHeap().newOop(getValueAsOopHandle(obj))
-                               : obj.getHeap().newOop(obj.getHandle().addOffsetToAsOopHandle(getOffset()), inlineKlass);
+    var heap = obj.getHeap();
+    if (inlineKlass == null) {
+      if (isFlat()) {
+        var sig = getSignature().asString();
+        var klsName = sig.substring(1, sig.length() - 1); // extracts L(class name);
+        InlineKlass kls = (InlineKlass)SystemDictionaryHelper.findInstanceKlass(klsName);
+        return heap.newOop(obj.getHandle().addOffsetToAsOopHandle(getOffset()), kls);
+      } else {
+        return heap.newOop(getValueAsOopHandle(obj));
+      }
+    } else {
+      return heap.newOop(obj.getHandle().addOffsetToAsOopHandle(getOffset()), inlineKlass);
+    }
   }
 
   /** Debugging support */

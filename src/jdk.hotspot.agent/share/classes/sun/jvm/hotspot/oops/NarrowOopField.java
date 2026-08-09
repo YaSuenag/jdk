@@ -40,10 +40,6 @@ public class NarrowOopField extends OopField {
     super(holder, fieldArrayIndex);
   }
 
-  public Oop getValue(Oop obj) {
-    return obj.getHeap().newOop(getValueAsOopHandle(obj));
-  }
-
   /** Debugging support */
   public OopHandle getValueAsOopHandle(Oop obj) {
     return obj.getHandle().getCompOopHandleAt(getOffset());

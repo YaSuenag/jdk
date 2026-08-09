@@ -194,7 +194,7 @@ public class ObjectHeap {
     throw new UnknownOopException(handle.toString());
   }
 
-  // This method would be used to instantiate the object in flatten class in FlatArray.
+  // This method would be used to instantiate flattened object.
   public Oop newOop(OopHandle handle, InlineKlass klass) {
     if (handle == null) return null;
 

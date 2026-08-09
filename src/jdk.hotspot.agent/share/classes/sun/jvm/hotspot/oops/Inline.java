@@ -35,18 +35,18 @@ public class Inline extends Instance {
         return true;
     }
 
-    public boolean isInFlatArray() {
+    public boolean isFlattened() {
         return klass != null;
     }
 
     @Override
     public Klass getKlass() {
-        return isInFlatArray() ? klass : super.getKlass();
+        return isFlattened() ? klass : super.getKlass();
     }
 
     @Override
     public void iterateFields(OopVisitor visitor, boolean doVMFields) {
-        if (isInFlatArray()) {
+        if (isFlattened()) {
             ((InlineKlass)getKlass()).iterateNonStaticFields(visitor, this);
         } else {
             super.iterateFields(visitor, doVMFields);
