@@ -52,6 +52,22 @@ public class OopField extends Field {
     inlineKlass = null;
   }
 
+  public Klass getKlassFromSignature() {
+    var sig = getSignature().asString();
+    var klsName = sig.substring(1, sig.length() - 1); // extracts L(class name);
+    return SystemDictionaryHelper.findInstanceKlass(klsName);
+  }
+
+  @Override
+  public long getOffset() {
+    long ofs = super.getOffset();
+    if (isFlat() && inlineKlass == null) {
+      // Subtract payload offset because this field is flattened.
+      ofs -= ((InlineKlass)getKlassFromSignature()).members().payloadOffset();
+    }
+    return ofs;
+  }
+
   public Oop getValue(Oop obj) {
     if (!isVMField() && !obj.isInstance() && !obj.isArray()) {
       throw new InternalError();
@@ -59,9 +75,7 @@ public class OopField extends Field {
     var heap = obj.getHeap();
     if (inlineKlass == null) {
       if (isFlat()) {
-        var sig = getSignature().asString();
-        var klsName = sig.substring(1, sig.length() - 1); // extracts L(class name);
-        InlineKlass kls = (InlineKlass)SystemDictionaryHelper.findInstanceKlass(klsName);
+        InlineKlass kls = (InlineKlass)getKlassFromSignature();
         return heap.newOop(obj.getHandle().addOffsetToAsOopHandle(getOffset()), kls);
       } else {
         return heap.newOop(getValueAsOopHandle(obj));
