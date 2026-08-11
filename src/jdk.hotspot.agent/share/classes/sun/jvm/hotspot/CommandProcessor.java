@@ -256,12 +256,20 @@ public class CommandProcessor {
             out.println("Usage: " + usage);
         }
 
-        void printNode(SimpleTreeNode node) {
+        void printNode(SimpleTreeNode node, int indent) {
+            String blanks = (indent == 0) ? ""
+                                          : String.format("%" + (indent * 2) + "s", "");
             int count = node.getChildCount();
             for (int i = 0; i < count; i++) {
+                out.print(blanks);
                 try {
                     SimpleTreeNode field = node.getChild(i);
-                    out.println(field);
+                    if (field instanceof OopTreeNodeAdapter of) {
+                        out.println(of.getName() + ": ");
+                        printNode(new OopTreeNodeAdapter(of.getOop(), null), indent + 1);
+                    } else {
+                        out.println(field);
+                    }
                 } catch (Exception e) {
                     out.println();
                     out.println("Error: " + e);
@@ -270,6 +278,10 @@ public class CommandProcessor {
                     }
                 }
             }
+        }
+
+        void printNode(SimpleTreeNode node) {
+            printNode(node, 0);
         }
     }
 
