@@ -191,6 +191,7 @@
   nonstatic_field(ResolvedMethodEntry,         _cpool_index,                                  u2)                                    \
   nonstatic_field(ConstantPoolCache,           _resolved_indy_entries,                        Array<ResolvedIndyEntry>*)             \
   nonstatic_field(ResolvedIndyEntry,           _cpool_index,                                  u2)                                    \
+  nonstatic_field(InlineLayoutInfo,            _kind,                                         LayoutKind)                            \
   volatile_nonstatic_field(InstanceKlass,      _array_klasses,                                ObjArrayKlass*)                        \
   nonstatic_field(InstanceKlass,               _methods,                                      Array<Method*>*)                       \
   nonstatic_field(InstanceKlass,               _default_methods,                              Array<Method*>*)                       \
@@ -220,8 +221,10 @@
   nonstatic_field(InstanceKlass,               _method_ordering,                              Array<int>*)                           \
   nonstatic_field(InstanceKlass,               _default_vtable_indices,                       Array<int>*)                           \
   nonstatic_field(InstanceKlass,               _access_flags,                                 AccessFlags)                           \
+  nonstatic_field(InstanceKlass,               _inline_layout_info_array,                     Array<InlineLayoutInfo>*)              \
   nonstatic_field(InstanceKlass,               _adr_inline_klass_members,                     address)                               \
   nonstatic_field(InlineKlass::Members,        _payload_offset,                               int)                                   \
+  nonstatic_field(InlineKlass::Members,        _null_marker_offset,                           int)                                   \
   nonstatic_field(Klass,                       _kind,                                         const Klass::KlassKind)                \
   nonstatic_field(Klass,                       _super_check_offset,                           juint)                                 \
   nonstatic_field(Klass,                       _secondary_super_cache,                        Klass*)                                \
@@ -732,6 +735,7 @@
   unchecked_nonstatic_field(Array<ResolvedMethodEntry>,_data,                                 sizeof(ResolvedMethodEntry))           \
   unchecked_nonstatic_field(Array<ResolvedIndyEntry>,  _data,                                 sizeof(ResolvedIndyEntry))             \
   unchecked_nonstatic_field(Array<Array<u1>*>,         _data,                                 sizeof(Array<u1>*))                    \
+  unchecked_nonstatic_field(Array<InlineLayoutInfo>,   _data,                                 sizeof(InlineLayoutInfo))              \
                                                                                                                                      \
   /*********************************/                                                                                                \
   /* java_lang_Class fields        */                                                                                                \
@@ -950,6 +954,7 @@
     declare_type(MethodCounters, MetaspaceObj)                            \
     declare_type(ConstMethod, MetaspaceObj)                               \
     declare_type(Annotations, MetaspaceObj)                               \
+    declare_type(InlineLayoutInfo, MetaspaceObj)                          \
                                                                           \
   declare_toplevel_type(InlineKlass::Members)                             \
                                                                           \
@@ -1194,6 +1199,7 @@
                                                                           \
    declare_integer_type(AOTCompressedPointers::narrowPtr)                 \
    declare_integer_type(Bytecodes::Code)                                  \
+   declare_integer_type(LayoutKind)                                       \
    declare_integer_type(InstanceKlass::ClassState)                        \
    declare_integer_type(Klass::KlassKind)                                 \
    declare_integer_type(JavaThreadState)                                  \
@@ -1212,6 +1218,7 @@
             declare_type(Array<ResolvedMethodEntry>, MetaspaceObj)        \
             declare_type(Array<ResolvedIndyEntry>, MetaspaceObj)          \
             declare_type(Array<Array<u1>*>, MetaspaceObj)                 \
+            declare_type(Array<InlineLayoutInfo>, MetaspaceObj)           \
                                                                           \
    declare_toplevel_type(BitMap)                                          \
             declare_type(BitMapView, BitMap)                              \
@@ -1480,6 +1487,18 @@
   /*****************************************************/                 \
                                                                           \
   declare_constant(InstanceKlass::enclosing_method_attribute_size)        \
+                                                                          \
+  /*******************/                                                   \
+  /* LayoutKind enum */                                                   \
+  /*******************/                                                   \
+                                                                          \
+  declare_constant(LayoutKind::REFERENCE)                                 \
+  declare_constant(LayoutKind::BUFFERED)                                  \
+  declare_constant(LayoutKind::NULL_FREE_NON_ATOMIC_FLAT)                 \
+  declare_constant(LayoutKind::NULL_FREE_ATOMIC_FLAT)                     \
+  declare_constant(LayoutKind::NULLABLE_ATOMIC_FLAT)                      \
+  declare_constant(LayoutKind::NULLABLE_NON_ATOMIC_FLAT)                  \
+  declare_constant(LayoutKind::UNKNOWN)                                   \
                                                                           \
   /*********************************/                                     \
   /* InstanceKlass ClassState enum */                                     \

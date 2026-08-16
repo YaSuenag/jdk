@@ -142,6 +142,8 @@ class OopMapBlock {
 struct JvmtiCachedClassFileData;
 
 class InlineLayoutInfo : public MetaspaceObj {
+  friend class VMStructs;
+
   InlineKlass* _klass;
   LayoutKind _kind;
   int _null_marker_offset; // null marker offset for this field, relative to the beginning of the current container

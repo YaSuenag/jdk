@@ -43,7 +43,7 @@ public class OopField extends Field {
     super(holder, fieldArrayIndex);
   }
 
-  private Klass getFieldKlass() {
+  public Klass getFieldKlass() {
     var sig = getSignature().asString();
     var klsName = sig.substring(1, sig.length() - 1); // extracts L(class name);
     return SystemDictionaryHelper.findInstanceKlass(klsName);

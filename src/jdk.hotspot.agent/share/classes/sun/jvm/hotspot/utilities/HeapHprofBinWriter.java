@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.*;
 import java.util.*;
+import java.util.concurrent.atomic.*;
 import java.util.zip.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.memory.*;
@@ -387,16 +388,20 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     private static final long MAX_U4_VALUE = 0xFFFFFFFFL;
     int serialNum = 1;
 
+    private final AtomicLong idForFlatObj;
+
     public HeapHprofBinWriter() {
         this.KlassMap = new ArrayList<Klass>();
         this.names = new HashSet<Symbol>();
         this.gzLevel = 0;
+        this.idForFlatObj = new AtomicLong();
     }
 
     public HeapHprofBinWriter(int gzLevel) {
         this.KlassMap = new ArrayList<Klass>();
         this.names = new HashSet<Symbol>();
         this.gzLevel = gzLevel;
+        this.idForFlatObj = new AtomicLong();
     }
 
     public synchronized void write(String fileName) throws IOException {
@@ -733,12 +738,13 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         }
     }
 
-    protected void writeClass(Instance instance) throws IOException {
+    @Override
+    protected void writeClass(Instance instance, Deque<DumperFlatObject> flatObjects) throws IOException {
         Klass reflectedKlass = java_lang_Class.asKlass(instance);
         // dump instance record only for primitive type Class objects.
         // all other Class objects are covered by writeClassDumpRecords.
         if (reflectedKlass == null) {
-            writeInstance(instance);
+            writeInstance(instance, flatObjects);
         }
     }
 
@@ -1110,7 +1116,8 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         }
     }
 
-    protected void writeInstance(Instance instance) throws IOException {
+    @Override
+    protected void writeInstance(Instance instance, Deque<DumperFlatObject> flatObjects) throws IOException {
         Klass klass = instance.getKlass();
         if (klass.getClassLoaderData() == null) {
             // Ignoring this object since the corresponding Klass is not loaded.
@@ -1132,7 +1139,23 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         int size = cd.instSize;
         out.writeInt(size);
         for (Iterator<Field> itr = fields.iterator(); itr.hasNext();) {
-            writeField(itr.next(), instance);
+            writeField(itr.next(), instance, flatObjects);
+        }
+    }
+
+    @Override
+    protected void writeInstance(DumperFlatObject flatObj, Deque<DumperFlatObject> flatObjects) throws IOException {
+        out.writeByte((byte) HPROF_GC_INSTANCE_DUMP);
+        writeObjectID(flatObj.objectID());
+        out.writeInt(DUMMY_STACK_TRACE_ID);
+        writeObjectID(flatObj.klass().getJavaMirror());
+
+        ClassData cd = classDataCache.get(flatObj.klass());
+        List<Field> fields = cd.fields;
+        int size = cd.instSize;
+        out.writeInt(size);
+        for (Iterator<Field> itr = fields.iterator(); itr.hasNext();) {
+            writeField(itr.next(), flatObj.instance(), flatObjects);
         }
     }
 
@@ -1151,7 +1174,7 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
             out.writeByte((byte)kind);
             if (ik != null) {
                 // static field
-                writeField(field, ik.getJavaMirror());
+                writeField(field, ik.getJavaMirror(), null);
             }
         }
     }
@@ -1182,7 +1205,34 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         }
     }
 
-    private void writeField(Field field, Oop oop) throws IOException {
+    // similar with DumperClassCacheTableEntry::is_flat_nullable
+    private boolean isFlatNullable(InstanceKlass holder, int fieldIndex) {
+        var inlineLayoutInfoArray = holder.getInlineLayoutInfoArray();
+        if (inlineLayoutInfoArray != null) {
+            var layoutInfo = inlineLayoutInfoArray.at(fieldIndex);
+            var layoutKind = layoutInfo.getKind();
+            return LayoutKindHelper.isNullableFlat(layoutKind);
+        } else {
+            return false;
+        }
+    }
+
+    private long generateIDForFlatObj() {
+        long id;
+
+        // to avoid conflicts with oop addresses skip aligned values.
+        // FlatObjectDumper::get_id() returns -1 (ULONG_MAX) if it reaches max value, not rouded.
+        if (idForFlatObj.get() == -1) {
+            return -1;
+        }
+        do {
+            id = idForFlatObj.getAndIncrement();
+        } while ((id & VM.getVM().getMinObjAlignmentInBytesMask()) == 0);
+
+        return id;
+    }
+
+    private void writeField(Field field, Oop oop, Deque<DumperFlatObject> flatObjects) throws IOException {
         char typeCode = (char) field.getSignature().getByteAt(0);
         switch (typeCode) {
         case JVM_SIGNATURE_BOOLEAN:
@@ -1212,9 +1262,17 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         case JVM_SIGNATURE_CLASS:
         case JVM_SIGNATURE_ARRAY: {
             if (field.isFlat()) {
-              // FIXME - we don't handle flattened fields yet. Just treat them
-              // as a null reference. See JDK-8381370.
-              writeObjectID(null);
+              InlineKlass fieldKlass = (InlineKlass)((OopField)field).getFieldKlass();
+              if (isFlatNullable((InstanceKlass)oop.getKlass(), field.getFieldIndex())) {
+                Address payload = oop.getHandle().addOffsetTo(field.getOffset());
+                if (fieldKlass.isPayloadMarkedAsNull(payload)) {
+                  writeObjectID(null);
+                  return;
+                }
+              }
+              long id = generateIDForFlatObj();
+              flatObjects.push(new DumperFlatObject(id, fieldKlass, (Inline)((OopField)field).getValue(oop)));
+              writeObjectID(id);
             } else if (VM.getVM().isCompressedOopsEnabled()) {
               OopHandle handle = ((NarrowOopField)field).getValueAsOopHandle(oop);
               writeObjectID(getAddressValue(handle));
