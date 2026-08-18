@@ -62,6 +62,7 @@ public abstract class AbstractHeapGraphWriter implements HeapGraphWriter {
 
                     public boolean doObj(Oop oop) {
                         try {
+                            Deque<DumperFlatObject> flatObjects = new ArrayDeque<>();
                             writeHeapRecordPrologue(calculateOopDumpRecordSize(oop));
                             if (oop instanceof TypeArray) {
                                 writePrimitiveArray((TypeArray)oop);
@@ -79,7 +80,6 @@ public abstract class AbstractHeapGraphWriter implements HeapGraphWriter {
                                 Instance instance = (Instance) oop;
                                 Klass klass = instance.getKlass();
                                 Symbol name = klass.getName();
-                                Deque<DumperFlatObject> flatObjects = new ArrayDeque<>();
                                 if (name.equals(javaLangString)) {
                                     writeString(instance, flatObjects);
                                 } else if (name.equals(javaLangClass)) {
@@ -98,14 +98,14 @@ public abstract class AbstractHeapGraphWriter implements HeapGraphWriter {
                                     }
                                     writeInstance(instance, flatObjects);
                                 }
-                                while (!flatObjects.isEmpty()) {
-                                    writeInstance(flatObjects.pop(), flatObjects);
-                                }
                             } else {
                                 // not-a-Java-visible oop
                                 writeInternalObject(oop);
                             }
                             writeHeapRecordEpilogue();
+                            while (!flatObjects.isEmpty()) {
+                                writeInstance(flatObjects.pop(), flatObjects);
+                            }
                         } catch (IOException exp) {
                             throw new RuntimeException(exp);
                         }

@@ -531,6 +531,11 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         return BYTE_SIZE + OBJ_ID_SIZE * 2 + INT_SIZE * 2 + getSizeForFields(fields);
     }
 
+    private int calculateInlineDumpRecordSize(DumperFlatObject flatObj) {
+        ClassData cd = classDataCache.get(flatObj.klass());
+        return BYTE_SIZE + OBJ_ID_SIZE * 2 + INT_SIZE * 2 + cd.instSize;
+    }
+
     private int calculateClassDumpRecordSize(Klass k) {
         // tag + javaMirror + DUMMY_STACK_TRACE_ID + super
         int size = BYTE_SIZE + INT_SIZE + OBJ_ID_SIZE * 2;
@@ -1145,6 +1150,8 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
 
     @Override
     protected void writeInstance(DumperFlatObject flatObj, Deque<DumperFlatObject> flatObjects) throws IOException {
+        writeHeapRecordPrologue(calculateInlineDumpRecordSize(flatObj));
+
         out.writeByte((byte) HPROF_GC_INSTANCE_DUMP);
         writeObjectID(flatObj.objectID());
         out.writeInt(DUMMY_STACK_TRACE_ID);
@@ -1157,6 +1164,8 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         for (Iterator<Field> itr = fields.iterator(); itr.hasNext();) {
             writeField(itr.next(), flatObj.instance(), flatObjects);
         }
+
+        writeHeapRecordEpilogue();
     }
 
     //-- Internals only below this point
